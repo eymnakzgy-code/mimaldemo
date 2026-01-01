@@ -1,0 +1,2948 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<!-- GİRİŞ SİSTEMİ BAŞLANGICI -->
+<style>
+    /* Sayfa yüklendiğinde ana içeriğin anlık görünmesini engeller */
+    #main-content {
+        display: none;
+    }
+    
+    .login-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #0f172a; /* Modern koyu lacivert arka plan */
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .login-card {
+        background: white;
+        padding: 2.5rem;
+        border-radius: 1.5rem;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        width: 100%;
+        max-width: 400px;
+        text-align: center;
+    }
+
+    .login-card h2 {
+        margin-bottom: 0.5rem;
+        color: #1e293b;
+        font-size: 1.5rem;
+    }
+
+    .login-card p {
+        color: #64748b;
+        font-size: 0.9rem;
+        margin-bottom: 2rem;
+    }
+
+    .input-field {
+        width: 100%;
+        padding: 0.8rem;
+        margin-bottom: 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        box-sizing: border-box;
+    }
+
+    .input-field:focus {
+        outline: 2px solid #3b82f6;
+        border-color: transparent;
+    }
+
+    .login-btn {
+        width: 100%;
+        padding: 0.8rem;
+        background-color: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.3s;
+        margin-bottom: 0.75rem;
+    }
+
+    .login-btn:hover {
+        background-color: #2563eb;
+    }
+
+    /* MİSAFİR GİRİŞİ BUTONU STİLİ */
+    .guest-btn {
+        width: 100%;
+        padding: 0.8rem;
+        background-color: #94a3b8;
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.3s;
+    }
+
+    .guest-btn:hover {
+        background-color: #64748b;
+    }
+
+    #error-msg {
+        color: #ef4444;
+        font-size: 0.85rem;
+        margin-top: 1rem;
+        display: none;
+    }
+
+    /* EKRANIN ORTASINDA BELİREN MESAJ STİLİ */
+    .welcome-popup {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(37, 99, 235, 0.9); /* Mavi şeffaf arka plan */
+        color: white;
+        padding: 2rem 3rem;
+        border-radius: 1rem;
+        font-size: 1.5rem;
+        font-weight: bold;
+        z-index: 10000;
+        pointer-events: none;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        opacity: 0;
+        display: none;
+        animation: fadeOutEffect 10s forwards;
+    }
+
+    @keyframes fadeOutEffect {
+        0% { opacity: 0; transform: translate(-50%, -60%); }
+        10% { opacity: 1; transform: translate(-50%, -50%); }
+        90% { opacity: 1; transform: translate(-50%, -50%); }
+        100% { opacity: 0; transform: translate(-50%, -40%); display: none; }
+    }
+</style>
+
+<!-- Konfeti Efekti İçin Kütüphane -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+<!-- Geçici Hoş Geldin Mesajı -->
+<div id="student-welcome-popup" class="welcome-popup"></div>
+
+<div id="login-screen" class="login-overlay">
+    <div class="login-card">
+        <h2>Öğrenci Girişi</h2>
+        <p>Lütfen numaranızı ve okul kodunu giriniz.</p>
+        
+        <input type="text" id="student-id" class="input-field" placeholder="Öğrenci Numarası">
+        <input type="password" id="school-code" class="input-field" placeholder="Okul Kodu">
+        
+        <button onclick="validateStudent()" class="login-btn">Giriş Yap</button>
+        <!-- MİSAFİR GİRİŞİ BUTONU -->
+        <button onclick="guestLogin()" class="guest-btn">Misafir Olarak Devam Et</button>
+        
+        <p id="error-msg">Bilgiler hatalı veya yetkiniz yok!</p>
+    </div>
+</div>
+
+<!-- Alkış Sesi İçin Gizli Audio Elementi -->
+<audio id="applause-sound" preload="auto">
+    <source src="c:\Users\eymac\Downloads\applause-alks-ses-efekti-125030.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+    function launchConfetti() {
+        var duration = 3 * 1000;
+        var end = Date.now() + duration;
+
+        (function frame() {
+            confetti({
+                particleCount: 3,
+                angle: 60,
+                spread: 55,
+                origin: { x: 0 },
+                colors: ['#3b82f6', '#ffffff', '#60a5fa']
+            });
+            confetti({
+                particleCount: 3,
+                angle: 120,
+                spread: 55,
+                origin: { x: 1 },
+                colors: ['#3b82f6', '#ffffff', '#60a5fa']
+            });
+
+            if (Date.now() < end) {
+                requestAnimationFrame(frame);
+            }
+        }());
+    }
+
+    function showMainContent(name) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+        
+        const popup = document.getElementById('student-welcome-popup');
+        popup.innerText = "Hoş geldin, " + name + "!";
+        popup.style.display = 'block';
+        
+        // Alkış sesini çal
+        const audio = document.getElementById('applause-sound');
+        if (audio) {
+            audio.currentTime = 0;
+            audio.play().catch(e => console.log("Ses çalma hatası (Etkileşim gereklidir):", e));
+        }
+        
+        // Konfeti patlat
+        launchConfetti();
+        
+        // 10 saniye sonra DOM'dan tamamen kaldır
+        setTimeout(() => {
+            popup.style.display = 'none';
+        }, 10000);
+    }
+
+    function validateStudent() {
+        const inputId = document.getElementById('student-id').value.trim();
+        const inputCode = document.getElementById('school-code').value;
+        const errorMsg = document.getElementById('error-msg');
+        
+        const studentList = {
+            "1": "Öğrenci 1",
+            "2": "Öğrenci 2",
+            "3": "Öğrenci 3",
+            "4": "Öğrenci 4",
+            "5": "Öğrenci 5",
+            "6": "Öğrenci 6",
+            "7": "Öğrenci 7",
+            "8": "Öğrenci 8",
+            "9": "Öğrenci 9",
+            "10": "Öğrenci 10",
+            "11": "Öğrenci 11",
+            "12": "Öğrenci 12",
+            "13": "Öğrenci 13",
+            "14": "Öğrenci 14",
+            "15": "Öğrenci 15",
+            "16": "Öğrenci 16",
+            "17": "Öğrenci 17",
+            "18": "Öğrenci 18",
+            "19": "Öğrenci 19",
+            "20": "Öğrenci 20",
+            "21": "Öğrenci 21",
+            "22": "Öğrenci 22",
+            "23": "Öğrenci 23",
+            "24": "Öğrenci 24",
+            "25": "Öğrenci 25",
+            "26": "Öğrenci 26",
+            "27": "Öğrenci 27",
+            "28": "Öğrenci 28",
+            "29": "Öğrenci 29",
+            "30": "Öğrenci 30",
+            "31": "Öğrenci 31",
+            "32": "Öğrenci 32",
+            "33": "Öğrenci 33",
+            "34": "Öğrenci 34",
+            "35": "Öğrenci 35",
+            "36": "Öğrenci 36",
+            "37": "Öğrenci 37",
+            "38": "Öğrenci 38",
+            "39": "Öğrenci 39",
+            "40": "Öğrenci 40",
+            "41": "Öğrenci 41",
+            "42": "Öğrenci 42",
+            "43": "Öğrenci 43",
+            "44": "Öğrenci 44",
+            "45": "Öğrenci 45",
+            "46": "Öğrenci 46",
+            "47": "Öğrenci 47",
+            "48": "Öğrenci 48",
+            "49": "Öğrenci 49",
+            "50": "Öğrenci 50",
+            "51": "Öğrenci 51",
+            "52": "Öğrenci 52",
+            "53": "Öğrenci 53",
+            "54": "Öğrenci 54",
+            "55": "Öğrenci 55",
+            "56": "Öğrenci 56",
+            "57": "Öğrenci 57",
+            "58": "Öğrenci 58",
+            "59": "Öğrenci 59",
+            "60": "Öğrenci 60",
+            "61": "Öğrenci 61",
+            "62": "Öğrenci 62",
+            "63": "Öğrenci 63",
+            "64": "Öğrenci 64",
+            "65": "Öğrenci 65",
+            "66": "Öğrenci 66",
+            "67": "Öğrenci 67",
+            "68": "Öğrenci 68",
+            "69": "Öğrenci 69",
+            "70": "Öğrenci 70",
+            "71": "Öğrenci 71",
+            "72": "Öğrenci 72",
+            "73": "Öğrenci 73",
+            "74": "Öğrenci 74",
+            "75": "Öğrenci 75",
+            "76": "Öğrenci 76",
+            "77": "Öğrenci 77",
+            "78": "Öğrenci 78",
+            "79": "Öğrenci 79",
+            "80": "Öğrenci 80",
+            "81": "Öğrenci 81",
+            "82": "Öğrenci 82",
+            "83": "Öğrenci 83",
+            "84": "Öğrenci 84",
+            "85": "Öğrenci 85",
+            "86": "Öğrenci 86",
+            "87": "Öğrenci 87",
+            "88": "Öğrenci 88",
+            "89": "Öğrenci 89",
+            "90": "Öğrenci 90",
+            "91": "Öğrenci 91",
+            "92": "Öğrenci 92",
+            "93": "Öğrenci 93",
+            "94": "Öğrenci 94",
+            "95": "Öğrenci 95",
+            "96": "Öğrenci 96",
+            "97": "Öğrenci 97",
+            "98": "Öğrenci 98",
+            "99": "Öğrenci 99",
+            "100": "Öğrenci 100",
+            "101": "Öğrenci 101",
+            "102": "Öğrenci 102",
+            "103": "Öğrenci 103",
+            "104": "Öğrenci 104",
+            "105": "Öğrenci 105",
+            "106": "Öğrenci 106",
+            "107": "Öğrenci 107",
+            "108": "Öğrenci 108",
+            "109": "Öğrenci 109",
+            "110": "Öğrenci 110",
+            "111": "Öğrenci 111",
+            "112": "Öğrenci 112",
+            "113": "Öğrenci 113",
+            "114": "Öğrenci 114",
+            "115": "Öğrenci 115",
+            "116": "Öğrenci 116",
+            "117": "Öğrenci 117",
+            "118": "Öğrenci 118",
+            "119": "Öğrenci 119",
+            "120": "Öğrenci 120",
+            "121": "Öğrenci 121",
+            "122": "Öğrenci 122",
+            "123": "Öğrenci 123",
+            "124": "Öğrenci 124",
+            "125": "Öğrenci 125",
+            "126": "Öğrenci 126",
+            "127": "Öğrenci 127",
+            "128": "Öğrenci 128",
+            "129": "Öğrenci 129",
+            "130": "Öğrenci 130",
+            "131": "Öğrenci 131",
+            "132": "Öğrenci 132",
+            "133": "Öğrenci 133",
+            "134": "Öğrenci 134",
+            "135": "Öğrenci 135",
+            "136": "Öğrenci 136",
+            "137": "Öğrenci 137",
+            "138": "Öğrenci 138",
+            "139": "Öğrenci 139",
+            "140": "Öğrenci 140",
+            "141": "Öğrenci 141",
+            "142": "Öğrenci 142",
+            "143": "Öğrenci 143",
+            "144": "Öğrenci 144",
+            "145": "Öğrenci 145",
+            "146": "Öğrenci 146",
+            "147": "Öğrenci 147",
+            "148": "Öğrenci 148",
+            "149": "Öğrenci 149",
+            "150": "Öğrenci 150",
+            "151": "Öğrenci 151",
+            "152": "Öğrenci 152",
+            "153": "Öğrenci 153",
+            "154": "Öğrenci 154",
+            "155": "Öğrenci 155",
+            "156": "Öğrenci 156",
+            "157": "Öğrenci 157",
+            "158": "Öğrenci 158",
+            "159": "Öğrenci 159",
+            "160": "Öğrenci 160",
+            "161": "Öğrenci 161",
+            "162": "Öğrenci 162",
+            "163": "Öğrenci 163",
+            "164": "Öğrenci 164",
+            "165": "Öğrenci 165",
+            "166": "Öğrenci 166",
+            "167": "Öğrenci 167",
+            "168": "Öğrenci 168",
+            "169": "Öğrenci 169",
+            "170": "Öğrenci 170",
+            "171": "Öğrenci 171",
+            "172": "Öğrenci 172",
+            "173": "Öğrenci 173",
+            "174": "Öğrenci 174",
+            "175": "Öğrenci 175",
+            "176": "Öğrenci 176",
+            "177": "Öğrenci 177",
+            "178": "Öğrenci 178",
+            "179": "Öğrenci 179",
+            "180": "Öğrenci 180",
+            "181": "Öğrenci 181",
+            "182": "Öğrenci 182",
+            "183": "Öğrenci 183",
+            "184": "Öğrenci 184",
+            "185": "Öğrenci 185",
+            "186": "Öğrenci 186",
+            "187": "Öğrenci 187",
+            "188": "Öğrenci 188",
+            "189": "Öğrenci 189",
+            "190": "Öğrenci 190",
+            "191": "Öğrenci 191",
+            "192": "Öğrenci 192",
+            "193": "Öğrenci 193",
+            "194": "Öğrenci 194",
+            "195": "Öğrenci 195",
+            "196": "Öğrenci 196",
+            "197": "Öğrenci 197",
+            "198": "Öğrenci 198",
+            "199": "Öğrenci 199",
+            "200": "Öğrenci 200",
+            "201": "Öğrenci 201",
+            "202": "Öğrenci 202",
+            "203": "Öğrenci 203",
+            "204": "Öğrenci 204",
+            "205": "Öğrenci 205",
+            "206": "Öğrenci 206",
+            "207": "Öğrenci 207",
+            "208": "Öğrenci 208",
+            "209": "Öğrenci 209",
+            "210": "Öğrenci 210",
+            "211": "Öğrenci 211",
+            "212": "Öğrenci 212",
+            "213": "Öğrenci 213",
+            "214": "Öğrenci 214",
+            "215": "Öğrenci 215",
+            "216": "Öğrenci 216",
+            "217": "Öğrenci 217",
+            "218": "Öğrenci 218",
+            "219": "Öğrenci 219",
+            "220": "Öğrenci 220",
+            "221": "Öğrenci 221",
+            "222": "Öğrenci 222",
+            "223": "Öğrenci 223",
+            "224": "Öğrenci 224",
+            "225": "Öğrenci 225",
+            "226": "Öğrenci 226",
+            "227": "Öğrenci 227",
+            "228": "Öğrenci 228",
+            "229": "Öğrenci 229",
+            "230": "Öğrenci 230",
+            "231": "Öğrenci 231",
+            "232": "Öğrenci 232",
+            "233": "Öğrenci 233",
+            "234": "Öğrenci 234",
+            "235": "Öğrenci 235",
+            "236": "Öğrenci 236",
+            "237": "Öğrenci 237",
+            "238": "Öğrenci 238",
+            "239": "Öğrenci 239",
+            "240": "Öğrenci 240",
+            "241": "Öğrenci 241",
+            "242": "Öğrenci 242",
+            "243": "Öğrenci 243",
+            "244": "Öğrenci 244",
+            "245": "Öğrenci 245",
+            "246": "Öğrenci 246",
+            "247": "Öğrenci 247",
+            "248": "Öğrenci 248",
+            "249": "Öğrenci 249",
+            "250": "Öğrenci 250",
+            "251": "Öğrenci 251",
+            "252": "Öğrenci 252",
+            "253": "Öğrenci 253",
+            "254": "Öğrenci 254",
+            "255": "Öğrenci 255",
+            "256": "Öğrenci 256",
+            "257": "Öğrenci 257",
+            "258": "Öğrenci 258",
+            "259": "Öğrenci 259",
+            "260": "Öğrenci 260",
+            "261": "Öğrenci 261",
+            "262": "Öğrenci 262",
+            "263": "Öğrenci 263",
+            "264": "Öğrenci 264",
+            "265": "Öğrenci 265",
+            "266": "Öğrenci 266",
+            "267": "Öğrenci 267",
+            "268": "Öğrenci 268",
+            "269": "Öğrenci 269",
+            "270": "Öğrenci 270",
+            "271": "Öğrenci 271",
+            "272": "Öğrenci 272",
+            "273": "Öğrenci 273",
+            "274": "Öğrenci 274",
+            "275": "Öğrenci 275",
+            "276": "Öğrenci 276",
+            "277": "Öğrenci 277",
+            "278": "Öğrenci 278",
+            "279": "Öğrenci 279",
+            "280": "Öğrenci 280",
+            "281": "Öğrenci 281",
+            "282": "Öğrenci 282",
+            "283": "Öğrenci 283",
+            "284": "Öğrenci 284",
+            "285": "Öğrenci 285",
+            "286": "Öğrenci 286",
+            "287": "Öğrenci 287",
+            "288": "Öğrenci 288",
+            "289": "Öğrenci 289",
+            "290": "Öğrenci 290",
+            "291": "Öğrenci 291",
+            "292": "Öğrenci 292",
+            "293": "Öğrenci 293",
+            "294": "Öğrenci 294",
+            "295": "Öğrenci 295",
+            "296": "Öğrenci 296",
+            "297": "Öğrenci 297",
+            "298": "Öğrenci 298",
+            "299": "Öğrenci 299",
+            "300": "Celil Kıvrak",
+            "301": "Öğrenci 301",
+            "302": "Öğrenci 302",
+            "303": "Öğrenci 303",
+            "304": "Öğrenci 304",
+            "305": "Öğrenci 305",
+            "306": "Öğrenci 306",
+            "307": "Öğrenci 307",
+            "308": "Öğrenci 308",
+            "309": "Öğrenci 309",
+            "310": "Öğrenci 310",
+            "311": "Öğrenci 311",
+            "312": "Öğrenci 312",
+            "313": "Öğrenci 313",
+            "314": "Öğrenci 314",
+            "315": "Öğrenci 315",
+            "316": "Öğrenci 316",
+            "317": "Öğrenci 317",
+            "318": "Öğrenci 318",
+            "319": "Öğrenci 319",
+            "320": "Öğrenci 320",
+            "321": "Öğrenci 321",
+            "322": "Öğrenci 322",
+            "323": "Öğrenci 323",
+            "324": "Öğrenci 324",
+            "325": "Öğrenci 325",
+            "326": "Öğrenci 326",
+            "327": "Öğrenci 327",
+            "328": "Öğrenci 328",
+            "329": "Öğrenci 329",
+            "330": "Öğrenci 330",
+            "331": "Öğrenci 331",
+            "332": "Öğrenci 332",
+            "333": "Öğrenci 333",
+            "334": "Öğrenci 334",
+            "335": "Öğrenci 335",
+            "336": "Öğrenci 336",
+            "337": "Öğrenci 337",
+            "338": "Öğrenci 338",
+            "339": "Öğrenci 339",
+            "340": "Öğrenci 340",
+            "341": "Öğrenci 341",
+            "342": "Öğrenci 342",
+            "343": "Öğrenci 343",
+            "344": "Öğrenci 344",
+            "345": "Öğrenci 345",
+            "346": "Öğrenci 346",
+            "347": "Öğrenci 347",
+            "348": "Öğrenci 348",
+            "349": "Öğrenci 349",
+            "350": "Öğrenci 350",
+            "351": "Öğrenci 351",
+            "352": "Öğrenci 352",
+            "353": "Öğrenci 353",
+            "354": "Öğrenci 354",
+            "355": "Öğrenci 355",
+            "356": "Öğrenci 356",
+            "357": "Öğrenci 357",
+            "358": "Öğrenci 358",
+            "359": "Öğrenci 359",
+            "360": "Öğrenci 360",
+            "361": "Öğrenci 361",
+            "362": "Öğrenci 362",
+            "363": "Öğrenci 363",
+            "364": "Öğrenci 364",
+            "365": "Öğrenci 365",
+            "366": "Öğrenci 366",
+            "367": "Öğrenci 367",
+            "368": "Öğrenci 368",
+            "369": "Öğrenci 369",
+            "370": "Öğrenci 370",
+            "371": "Öğrenci 371",
+            "372": "Öğrenci 372",
+            "373": "Öğrenci 373",
+            "374": "Öğrenci 374",
+            "375": "Öğrenci 375",
+            "376": "Öğrenci 376",
+            "377": "Öğrenci 377",
+            "378": "Öğrenci 378",
+            "379": "Öğrenci 379",
+            "380": "Öğrenci 380",
+            "381": "Öğrenci 381",
+            "382": "Öğrenci 382",
+            "383": "Öğrenci 383",
+            "384": "Öğrenci 384",
+            "385": "Öğrenci 385",
+            "386": "Öğrenci 386",
+            "387": "Öğrenci 387",
+            "388": "Öğrenci 388",
+            "389": "Öğrenci 389",
+            "390": "Öğrenci 390",
+            "391": "Öğrenci 391",
+            "392": "Öğrenci 392",
+            "393": "Öğrenci 393",
+            "394": "Öğrenci 394",
+            "395": "Öğrenci 395",
+            "396": "Öğrenci 396",
+            "397": "Öğrenci 397",
+            "398": "Öğrenci 398",
+            "399": "Beril Akbay",
+            "400": "Mustafa Ünlü",
+            "401": "Belinay Taşköprü",
+            "402": "Öğrenci 402",
+            "403": "Öğrenci 403",
+            "404": "Öğrenci 404",
+            "405": "Öğrenci 405",
+            "406": "Öğrenci 406",
+            "407": "Öğrenci 407",
+            "408": "Öğrenci 408",
+            "409": "Öğrenci 409",
+            "410": "Öğrenci 410",
+            "411": "Öğrenci 411",
+            "412": "Öğrenci 412",
+            "413": "Öğrenci 413",
+            "414": "Hüseyin Yassıkaya",
+            "415": "Öğrenci 415",
+            "416": "Muhammed Nazmi Pehlivan",
+            "417": "Eymen Açıkgöz",
+            "418": "Öğrenci 418",
+            "419": "Öğrenci 419",
+            "420": "Öğrenci 420",
+            "421": "Öğrenci 421",
+            "422": "Öğrenci 422",
+            "423": "Öğrenci 423",
+            "424": "Öğrenci 424",
+            "425": "Öğrenci 425",
+            "426": "Öğrenci 426",
+            "427": "Öğrenci 427",
+            "428": "Öğrenci 428",
+            "429": "Öğrenci 429",
+            "430": "Öğrenci 430",
+            "431": "Öğrenci 431",
+            "432": "Öğrenci 432",
+            "433": "Öğrenci 433",
+            "434": "Öğrenci 434",
+            "435": "Öğrenci 435",
+            "436": "Öğrenci 436",
+            "437": "Öğrenci 437",
+            "438": "Öğrenci 438",
+            "439": "Öğrenci 439",
+            "440": "Öğrenci 440",
+            "441": "Öğrenci 441",
+            "442": "Öğrenci 442",
+            "443": "Öğrenci 443",
+            "444": "Öğrenci 444",
+            "445": "Öğrenci 445",
+            "446": "Öğrenci 446",
+            "447": "Öğrenci 447",
+            "448": "Öğrenci 448",
+            "449": "Öğrenci 449",
+            "450": "Öğrenci 450",
+            "451": "Öğrenci 451",
+            "452": "Öğrenci 452",
+            "453": "Öğrenci 453",
+            "454": "Öğrenci 454",
+            "455": "Öğrenci 455",
+            "456": "Öğrenci 456",
+            "457": "Öğrenci 457",
+            "458": "Öğrenci 458",
+            "459": "Öğrenci 459",
+            "460": "Öğrenci 460",
+            "461": "Öğrenci 461",
+            "462": "Öğrenci 462",
+            "463": "Öğrenci 463",
+            "464": "Öğrenci 464",
+            "465": "Öğrenci 465",
+            "466": "Öğrenci 466",
+            "467": "Öğrenci 467",
+            "468": "Öğrenci 468",
+            "469": "Öğrenci 469",
+            "470": "Öğrenci 470",
+            "471": "Öğrenci 471",
+            "472": "Öğrenci 472",
+            "473": "Öğrenci 473",
+            "474": "Öğrenci 474",
+            "475": "Öğrenci 475",
+            "476": "Öğrenci 476",
+            "477": "Öğrenci 477",
+            "478": "Öğrenci 478",
+            "479": "Öğrenci 479",
+            "480": "Öğrenci 480",
+            "481": "Öğrenci 481",
+            "482": "Öğrenci 482",
+            "483": "Öğrenci 483",
+            "484": "Öğrenci 484",
+            "485": "Öğrenci 485",
+            "486": "Öğrenci 486",
+            "487": "Öğrenci 487",
+            "488": "Öğrenci 488",
+            "489": "Öğrenci 489",
+            "490": "Öğrenci 490",
+            "491": "Öğrenci 491",
+            "492": "Öğrenci 492",
+            "493": "Öğrenci 493",
+            "494": "Öğrenci 494",
+            "495": "Öğrenci 495",
+            "496": "Öğrenci 496",
+            "497": "Öğrenci 497",
+            "498": "Öğrenci 498",
+            "499": "Öğrenci 499",
+            "500": "Öğrenci 500",
+            "501": "Öğrenci 501",
+            "502": "Öğrenci 502",
+            "503": "Öğrenci 503",
+            "504": "Öğrenci 504",
+            "505": "Öğrenci 505",
+            "506": "Öğrenci 506",
+            "507": "Öğrenci 507",
+            "508": "Öğrenci 508",
+            "509": "Öğrenci 509",
+            "510": "Öğrenci 510",
+            "511": "Öğrenci 511",
+            "512": "Öğrenci 512",
+            "513": "Öğrenci 513",
+            "514": "Öğrenci 514",
+            "515": "Öğrenci 515",
+            "516": "Öğrenci 516",
+            "517": "Öğrenci 517",
+            "518": "Öğrenci 518",
+            "519": "Öğrenci 519",
+            "520": "Öğrenci 520",
+            "521": "Öğrenci 521",
+            "522": "Öğrenci 522",
+            "523": "Öğrenci 523",
+            "524": "Öğrenci 524",
+            "525": "Öğrenci 525",
+            "526": "Öğrenci 526",
+            "527": "Öğrenci 527",
+            "528": "Öğrenci 528",
+            "529": "Öğrenci 529",
+            "530": "Öğrenci 530",
+            "531": "Öğrenci 531",
+            "532": "Öğrenci 532",
+            "533": "Öğrenci 533",
+            "534": "Öğrenci 534",
+            "535": "Öğrenci 535",
+            "536": "Öğrenci 536",
+            "537": "Öğrenci 537",
+            "538": "Öğrenci 538",
+            "539": "Öğrenci 539",
+            "540": "Öğrenci 540",
+            "541": "Öğrenci 541",
+            "542": "Öğrenci 542",
+            "543": "Öğrenci 543",
+            "544": "Öğrenci 544",
+            "545": "Öğrenci 545",
+            "546": "Öğrenci 546",
+            "547": "Öğrenci 547",
+            "548": "Öğrenci 548",
+            "549": "Öğrenci 549",
+            "550": "Öğrenci 550",
+            "551": "Öğrenci 551",
+            "552": "Öğrenci 552",
+            "553": "Öğrenci 553",
+            "554": "Öğrenci 554",
+            "555": "Öğrenci 555",
+            "556": "Öğrenci 556",
+            "557": "Öğrenci 557",
+            "558": "Öğrenci 558",
+            "559": "Öğrenci 559",
+            "560": "Öğrenci 560",
+            "561": "Öğrenci 561",
+            "562": "Öğrenci 562",
+            "563": "Öğrenci 563",
+            "564": "Öğrenci 564",
+            "565": "Öğrenci 565",
+            "566": "Öğrenci 566",
+            "567": "Öğrenci 567",
+            "568": "Öğrenci 568",
+            "569": "Öğrenci 569",
+            "570": "Öğrenci 570",
+            "571": "Öğrenci 571",
+            "572": "Öğrenci 572",
+            "573": "Öğrenci 573",
+            "574": "Öğrenci 574",
+            "575": "Öğrenci 575",
+            "576": "Öğrenci 576",
+            "577": "Öğrenci 577",
+            "578": "Öğrenci 578",
+            "579": "Öğrenci 579",
+            "580": "Öğrenci 580",
+            "581": "Öğrenci 581",
+            "582": "Öğrenci 582",
+            "583": "Öğrenci 583",
+            "584": "Öğrenci 584",
+            "585": "Öğrenci 585",
+            "586": "Öğrenci 586",
+            "587": "Öğrenci 587",
+            "588": "Öğrenci 588"
+
+        };
+
+        const correctSchoolCode = "964316";
+
+        if (studentList[inputId] && inputCode === correctSchoolCode) {
+            const studentName = studentList[inputId];
+            showMainContent(studentName);
+        } else {
+            errorMsg.style.display = 'block';
+            document.getElementById('school-code').value = "";
+        }
+    }
+
+    // MİSAFİR GİRİŞİ FONKSİYONU
+    function guestLogin() {
+        showMainContent("Ziyaretçi");
+    }
+
+    // Sayfa her yüklendiğinde/yenilendiğinde giriş ekranı zorunlu
+    window.onload = function() {
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('main-content').style.display = 'none';
+    }
+</script>
+
+<div id="main-content">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1894 Afyon Lisesi | 130 Yıllık Köklü Eğitim Geleneği</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --secondary: #b91c1c;
+            --accent: #d4af37;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            scroll-behavior: smooth;
+        }
+        h1, h2, h3, .serif {
+            font-family: 'Playfair Display', serif;
+        }
+        .hero-gradient {
+            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://r.resimlink.com/WTgaSYsU.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .transition-card {
+            transition: all 0.3s ease;
+        }
+        .transition-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        .hidden-page {
+            display: none;
+        }
+        .active-page {
+            display: block;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <style>
+    :root {
+        --primary: #4f46e5;
+        --primary-light: #818cf8;
+        --secondary: #10b981;
+        --accent: #f43f5e;
+        --bg-main: #f8fafc;
+        --glass: rgba(255, 255, 255, 0.98);
+        --text-dark: #0f172a;
+        --text-light: #64748b;
+        --shadow-bot: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg-main); margin: 0; }
+
+    /* Launcher */
+    #bot-launcher {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        width: 75px;
+        height: 75px;
+        background: var(--primary);
+        border-radius: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 10px 20px rgba(79, 70, 229, 0.4);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        z-index: 10000;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+    }
+
+    #bot-launcher:hover { transform: scale(1.1) rotate(3deg); }
+    #bot-launcher svg { width: 35px; height: 35px; fill: white; }
+
+    /* Akademik Koç 1894 - CSS Start */
+:root {
+    --primary: #6366f1;
+    --primary-light: #818cf8;
+    --primary-dark: #4f46e5;
+    --secondary: #ec4899;
+    --text-dark: #1e293b;
+    --text-light: #64748b;
+    --glass: rgba(255, 255, 255, 0.9);
+    --shadow-bot: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+    /* Bot Launcher */
+    #bot-launcher {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        width: 70px;
+        height: 70px;
+        background: var(--primary);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.4);
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        z-index: 10001;
+    }
+
+    #bot-launcher:hover { transform: scale(1.1) rotate(10deg); background: var(--primary-dark); }
+    #bot-launcher svg { width: 32px; fill: white; }
+
+    /* Chat App */
+    #chat-app {
+        position: fixed;
+        bottom: 7rem;
+        right: 2rem;
+        width: 500px;
+        max-width: 95vw;
+        height: 750px;
+        max-height: 85vh;
+        background: var(--glass);
+        backdrop-filter: blur(25px);
+        border-radius: 32px;
+        box-shadow: var(--shadow-bot);
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        z-index: 10000;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    #chat-app.visible { display: flex; animation: chatOpen 0.5s cubic-bezier(0.23, 1, 0.32, 1); }
+
+    @keyframes chatOpen {
+        from { opacity: 0; transform: translateY(30px) scale(0.95); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Header */
+    .header {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        padding: 1.5rem;
+        color: white;
+        text-align: left;
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .header-info h2 { margin: 0; font-size: 1.25rem; font-weight: 800; }
+    .header-info p { margin: 2px 0 0; font-size: 0.8rem; opacity: 0.9; }
+
+    .status-dot { width: 8px; height: 8px; background: #4ade80; border-radius: 50%; display: inline-block; margin-right: 5px; box-shadow: 0 0 8px #4ade80; }
+
+    /* Message Flow */
+    #message-flow {
+        flex: 1;
+        padding: 1.5rem;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        background: #f8fafc;
+        scrollbar-width: thin;
+    }
+
+    .message {
+        max-width: 85%;
+        padding: 1rem 1.2rem;
+        border-radius: 20px;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        animation: msgFade 0.3s ease;
+    }
+
+    @keyframes msgFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .bot { background: white; color: var(--text-dark); align-self: flex-start; border: 1px solid #e2e8f0; border-bottom-left-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+    .user { background: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+
+    /* Advanced Content Formatting */
+    .content-block {
+        margin: 12px 0;
+        padding: 15px;
+        background: #f1f5f9;
+        border-left: 4px solid var(--primary);
+        border-radius: 8px;
+        font-size: 0.9rem;
+    }
+
+    .section-title { font-weight: 800; color: var(--primary-dark); display: block; margin-top: 15px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 8px; }
+    .highlight { color: var(--secondary); font-weight: bold; }
+
+    /* Quick Pills */
+    .pill-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 15px; }
+    .pill {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        color: var(--text-dark);
+    }
+    .pill:hover { background: var(--primary); color: white; border-color: var(--primary); transform: translateY(-2px); }
+
+    /* Input Zone */
+    .input-area {
+        padding: 1rem 1.5rem 1.5rem;
+        background: white;
+        border-top: 1px solid #f1f5f9;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    #user-input {
+        flex: 1;
+        border: 2px solid #f1f5f9;
+        padding: 0.8rem 1.2rem;
+        border-radius: 12px;
+        outline: none;
+        transition: 0.3s;
+        background: #f8fafc;
+    }
+
+    #user-input:focus { border-color: var(--primary-light); background: white; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); }
+
+    .send-btn {
+        background: var(--primary);
+        color: white;
+        border: none;
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: 0.2s;
+    }
+
+    .send-btn:hover { background: var(--primary-dark); transform: scale(1.05); }
+
+    /* Typing UI */
+    .typing { display: none; gap: 4px; padding: 10px 20px; }
+    .dot { width: 6px; height: 6px; background: #cbd5e1; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+    .dot:nth-child(1) { animation-delay: -0.32s; }
+    .dot:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+</style>
+
+<!-- Akademik Koç 1894 - HTML Structure -->
+<div id="bot-launcher" onclick="toggleChat()">
+    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+</div>
+
+<div id="chat-app">
+    <div class="header">
+        <div style="width: 45px; height: 45px; background: white; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#6366f1"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <div class="header-info">
+            <h2>Akademik Koç 1894</h2>
+            <p><span class="status-dot"></span> Bilişsel Strateji Ortağı Online</p>
+        </div>
+    </div>
+
+    <div id="message-flow">
+        <div class="message bot">
+            Merhaba! Ben senin akademik verimlilik kütüphanenim. YKS sürecinden tut, beynin nasıl öğrendiğine kadar her konuda uzmanım.
+            <br><br><b>Neyi optimize etmek istersin?</b>
+            <div class="pill-container">
+                <button class="pill" onclick="quickAsk('Yol Haritası')">🚀 Yol Haritası</button>
+                <button class="pill" onclick="quickAsk('Hafıza Teknikleri')">⚡ Hafıza Teknikleri</button>
+                <button class="pill" onclick="quickAsk('Sayısal Taktikler')">🔢 Sayısal Sırları</button>
+                <button class="pill" onclick="quickAsk('Sınav Psikolojisi')">🧠 Mental Güç</button>
+                <button class="pill" onclick="quickAsk('Deneme Analizi')">📈 Deneme Analizi</button>
+                <button class="pill" onclick="quickAsk('Ölümcül Hatalar')">🚫 Ölümcül Hatalar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="typing-ui" class="typing">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+
+    <div class="input-area">
+        <input type="text" id="user-input" placeholder="Bir soru sor veya konu seç..." onkeypress="if(event.key==='Enter')handleSend()">
+        <button class="send-btn" onclick="handleSend()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+    </div>
+</div>
+
+<!-- Akademik Koç 1894 - Logic -->
+<script>
+    const MASTER_GUIDES = {
+        YKS_MARATHON: `
+            <span class="section-title">🚀 YKS Maratonu: Stratejik Fazlar</span>
+            <div class="content-block">
+                <b>1. Temel İnşa (Eylül-Ocak):</b> Odak noktan TYT'yi %80 bitirmek ve AYT'nin temel taşlarını (Fonksiyonlar, Kelime bilgisi) oturtmaktır.
+                <br><br><b>2. AYT Yüklemesi (Şubat-Nisan):</b> Puanın asıl kaynağı burası. Limit-Türev-İntegral veya Edebiyat-Tarih ağırlığını artır.
+                <br><br><b>3. Seri Denemeler (Mayıs-Haziran):</b> Her gün bir sınav provası yap. MEB kazanım testlerini taramadan sınava girme.
+            </div>
+            <span class="section-title">💡 Kritik İpucu</span>
+            "Zamanı değil, enerjini yönet." En zor dersi günün ilk saatlerine koy (Kurbağayı Ye tekniği).
+        `,
+        BRAIN_HACK: `
+            <span class="section-title">⚡ Beyni Hackleme: Bilimsel Teknikler</span>
+            <div class="content-block">
+                <b>1. Blurting:</b> Bir konuyu oku, kitabı kapat ve boş bir kağıda her şeyi kus. Eksikleri kırmızı kalemle tamamla.
+                <br><b>2. Interleaving:</b> Sadece Matematik çalışma. 90 dk Mat - 30 dk ara - 60 dk Türkçe yap. Beyin geçişlerde daha çok nöron yakar.
+                <br><b>3. Dual Coding:</b> Bilgiyi hem görsel (çizim) hem metin olarak işle.
+                <br><b>4. Spaced Repetition:</b> 1-3-7-21 kuralı. Öğrendiğini bu günlerde tekrar etmezsen %70'ini unutursun.
+            </div>
+        `,
+        NUMERICAL_SECRETS: `
+            <span class="section-title">🔢 Sayısal Master Taktikler</span>
+            <div class="content-block">
+                <b>Matematik:</b> Formül ezberleme, ispatını öğren. İspatını bildiğin şeyi unutmazsın.
+                <br><b>Geometri:</b> Göz kaslarını eğit. Her gün 10 soru çözmek "görme" yeteneğini refleks yapar.
+                <br><b>Fizik:</b> Formüller arasındaki birim analizini yap. Birimleri bilirsen formülü kendin türetirsin.
+            </div>
+        `,
+        PSYCHOLOGY: `
+            <span class="section-title">🧠 Sınav Psikolojisi: Çelik Gibi Sinirler</span>
+            <div class="content-block">
+                <b>1. Dopamin Detoksu:</b> Sabah uyandığında ilk 2 saat ekrana bakma. Beynin odak kapasitesini sosyal medyada tüketme.
+                <br><b>2. Stoacılık:</b> Sınavın zorluğunu kontrol edemezsin, ama senin o soruya vereceğin tepkiyi kontrol edebilirsin.
+                <br><b>3. Glikoz Dengesi:</b> Kan şekeri dalgalanması dikkat dağıtır. Kompleks karbonhidratlara (tam tahıllar) odaklan.
+            </div>
+        `,
+        MOCK_ANALYSIS: `
+            <span class="section-title">📈 Deneme Analizi: Net Fabrikası</span>
+            <div class="content-block">
+                <b>Analiz Defteri:</b> Yanlış yaptığın soruların çözümünü değil, "neden yanlış yaptığının mantığını" yaz.
+                <br><br><b>Üç Renk Tekniği:</b> 
+                <br>🟢 Yeşil: Bilgi eksikliği.
+                <br>🟡 Sarı: Dikkat hatası.
+                <br>🔴 Kırmızı: Süre/Mantık hatası.
+            </div>
+            Haftalık programını bu renklere göre güncelle.
+        `,
+        MISTAKES: `
+            <span class="section-title">🚫 Uzak Durulması Gereken 5 Ölümcül Hata</span>
+            <div class="content-block">
+                1. Çözümlü videoyu izleyip "anladım" demek (Kalemi eline alıp kendin çözmedikçe öğrenmedin).
+                <br>2. Sadece sevdiği derse çalışmak.
+                <br>3. Deneme analizini sonraya bırakmak (Analizsiz deneme, sadece vakit kaybıdır).
+                <br>4. Uyku süresinden kısıp ders çalışmak (Beyin uykuda öğrenir).
+                <br>5. TYT paragraf/problem rutinini aksatmak.
+            </div>
+        `,
+        LIFESTYLE: `
+            <span class="section-title">🍎 Şampiyonların Yaşam Tarzı</span>
+            <div class="content-block">
+                <b>Uyku:</b> Gece 11 ile 03 arası uykuda olmalısın (Melatonin zirvesi).
+                <br><b>Su:</b> Günde en az 2.5 litre su. Dehidrasyon odağı %20 düşürür.
+                <br><b>Hareket:</b> 20 dk yürüyüş beyne giden oksijeni artırır ve BDNF hormonu salgılatır.
+            </div>
+        `
+    };
+
+    function toggleChat() {
+        const app = document.getElementById('chat-app');
+        app.classList.toggle('visible');
+    }
+
+    function quickAsk(txt) {
+        document.getElementById('user-input').value = txt;
+        handleSend();
+    }
+
+    function handleSend() {
+        const input = document.getElementById('user-input');
+        const msg = input.value.trim().toLowerCase();
+        if (!msg) return;
+
+        addMessage(input.value, 'user');
+        input.value = "";
+
+        const typing = document.getElementById('typing-ui');
+        typing.style.display = 'flex';
+
+        setTimeout(() => {
+            typing.style.display = 'none';
+            let response = "";
+
+            if (msg.includes('yol') || msg.includes('maraton') || msg.includes('yks')) {
+                response = MASTER_GUIDES.YKS_MARATHON;
+            } else if (msg.includes('teknik') || msg.includes('hafıza') || msg.includes('çalışma') || msg.includes('blurting')) {
+                response = MASTER_GUIDES.BRAIN_HACK;
+            } else if (msg.includes('sayısal') || msg.includes('matematik') || msg.includes('fizik')) {
+                response = MASTER_GUIDES.NUMERICAL_SECRETS;
+            } else if (msg.includes('psikoloji') || msg.includes('motivasyon') || msg.includes('stres') || msg.includes('mental')) {
+                response = MASTER_GUIDES.PSYCHOLOGY;
+            } else if (msg.includes('deneme') || msg.includes('analiz') || msg.includes('net')) {
+                response = MASTER_GUIDES.MOCK_ANALYSIS;
+            } else if (msg.includes('hata') || msg.includes('yanlış') || msg.includes('ölümcül')) {
+                response = MASTER_GUIDES.MISTAKES;
+            } else if (msg.includes('yaşam') || msg.includes('uyku') || msg.includes('beslenme')) {
+                response = MASTER_GUIDES.LIFESTYLE;
+            } else {
+                response = `
+                    Bu konuda sana en kaliteli veriyi sunabilmem için şunları deneyebilirsin:
+                    <br><br><b>Öneri:</b> "Sayısal taktikler", "Blurting tekniği" veya "Deneme analizi nasıl yapılır?" gibi şeyler sorabilirsin.
+                `;
+            }
+
+            addMessage(response, 'bot');
+        }, 1200);
+    }
+
+    function addMessage(html, type) {
+        const flow = document.getElementById('message-flow');
+        const div = document.createElement('div');
+        div.className = `message ${type}`;
+        div.innerHTML = html;
+        flow.appendChild(div);
+        
+        flow.scrollTo({
+            top: flow.scrollHeight,
+            behavior: 'smooth'
+        });
+    }
+</script>
+</script>
+    <!-- Navigation -->
+    <nav class="fixed w-full z-50 glass-effect border-b border-slate-200">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="showPage('main')">
+                <div class="bg-blue-900 text-white p-2 rounded-lg font-bold">1894</div>
+                <span class="text-xl font-bold text-blue-900 tracking-tight">AFYON LİSESİ</span>
+            </div>
+            <div class="hidden md:flex space-x-8 font-medium text-sm uppercase tracking-widest">
+                <a href="#about" class="hover:text-blue-900 transition">Hakkımızda</a>
+                <a href="#history" class="hover:text-blue-900 transition">Tarihçe</a>
+                <a href="#architecture" class="hover:text-blue-900 transition">Mimari</a>
+                <a href="#alumni" class="hover:text-blue-900 transition">Ünlü Mezunlar</a>
+                <a href="#gallery" class="hover:text-blue-900 transition">Galeri</a>
+            </div>
+            <button onclick="window.open('https://afyonlisesi.meb.k12.tr/', '_blank')" class="bg-blue-900 text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-blue-800 transition shadow-lg">
+                Resmi Site
+            </button>
+        </div>
+    </nav>
+    <!-- MAIN PAGE CONTENT -->
+    <div id="main-page" class="active-page">
+        <!-- Hero Section -->
+        <section class="hero-gradient h-screen flex items-center justify-center text-center text-white px-6">
+            <div class="max-w-4xl">
+                <h4 class="text-accent uppercase tracking-[0.3em] font-semibold mb-4">1894 Afyon Lisesi</h4>
+                <h1 class="text-5xl md:text-7xl font-bold mb-6 leading-tight">Afyon Lisesi <br>Mekteb-i İdadi-i Mülki</h1>
+                <p class="text-xl md:text-2xl font-light mb-8 italic opacity-90">"130 Yıllık Köklü Bir Eğitim Geleneği"</p>
+                <div class="flex flex-col md:flex-row justify-center gap-4">
+                    <span class="bg-white/20 backdrop-blur-md border border-white/30 px-6 py-3 rounded-full font-medium">Türkiye'nin İlk 100 Tarihi Okulu</span>
+                    <span class="bg-blue-900/40 backdrop-blur-md border border-blue-400/30 px-6 py-3 rounded-full font-medium">Ünlülerin Okulu</span>
+                </div>
+                <div class="mt-12">
+                    <a href="#about" class="animate-bounce inline-block">
+                        <i class="fa-solid fa-chevron-down text-3xl"></i>
+                    </a>
+                </div>
+            </div>
+        </section>
+        <!-- About Summary Section -->
+        <section id="about" class="py-24 bg-white">
+            <div class="container mx-auto px-6">
+                <div class="flex flex-col lg:flex-row items-center gap-16">
+                    <div class="lg:w-1/2">
+                        <div class="relative">
+                            <img src="https://r.resimlink.com/wL4Fhtk6.jpg" alt="Afyon Lisesi Tarihi Bina" class="rounded-2xl shadow-2xl relative z-10">
+                            <div class="absolute -bottom-6 -right-6 w-full h-full border-4 border-blue-900 rounded-2xl z-0"></div>
+                        </div>
+                    </div>
+                    <div class="lg:w-1/2">
+                        <h2 class="text-4xl font-bold text-blue-900 mb-6">Hakkımızda</h2>
+                        <div class="space-y-4 text-lg text-slate-700 leading-relaxed">
+                            <p>
+                                Afyon Lisesi, Sultan II. Abdülhamid döneminde <strong>Ağustos 1894'te</strong> Karahisar-ı Sahib Mekteb-i İdadi-i Mülki adıyla Afyonkarahisar'da kurulmuştur.
+                            </p>
+                            <p>
+                                Türkiye'nin <strong>ilk 100 tarihi okulu</strong> arasında yer alan kurumumuz, 1923 yılında yapılan İlmiye Encümeni toplantısında "Afyonkarahisar Sultanisi" adını almıştır.
+                            </p>
+                            <p>
+                                2005-2006 eğitim-öğretim yılından itibaren Anadolu Lisesi statüsü kazanan okulumuz, 2014 yılında tarihi eserlerden ve 4 holden oluşan güzel bir <strong>okul müzesine</strong> kavuşmuştur.
+                            </p>
+                        </div>
+                        <button onclick="showPage('history')" class="mt-8 bg-blue-900 text-white px-8 py-4 rounded-xl font-bold hover:bg-blue-800 transition-all flex items-center group">
+                            Daha Fazla Bilgi
+                            <button onclick="window.location.href='https://ogm.meb.gov.tr/yuz-tarihi-lise/1894-AFYON-LISESI.html'" class="mt-8 bg-blue-900 text-white px-8 py-4 rounded-xl font-bold hover:bg-blue-800 transition-all flex items-center group">
+    Tarihi 100 lise (İnteraktif Harita)
+</button>
+                            <i class="fa-solid fa-arrow-right ml-3 group-hover:translate-x-2 transition"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Section -->
+        <section class="py-20 bg-blue-900 text-white">
+            <div class="container mx-auto px-6">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
+                    <div>
+                        <div class="text-5xl font-bold mb-2">130+</div>
+                        <div class="text-blue-200 uppercase tracking-widest text-sm">Yıllık Deneyim</div>
+                    </div>
+                    <div>
+                        <div class="text-5xl font-bold mb-2 text-accent">2</div>
+                        <div class="text-blue-200 uppercase tracking-widest text-sm">Cumhurbaşkanı Mezun</div>
+                    </div>
+                    <div>
+                        <div class="text-5xl font-bold mb-2">1894</div>
+                        <div class="text-blue-200 uppercase tracking-widest text-sm">Kuruluş Yılı</div>
+                    </div>
+                    <div>
+                        <div class="text-5xl font-bold mb-2">568</div>
+                        <div class="text-blue-200 uppercase tracking-widest text-sm">Aktif Öğrenci</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- History Summary -->
+        <style>
+    
+    .timeline-container {
+        position: relative;
+        max-width: 1200px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+
+    /* Orta hat (Ağacın Gövdesi) */
+    .timeline-container::before {
+        content: '';
+        position: absolute;
+        width: 4px;
+        background: #1e3a8a; 
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        margin-left: -2px;
+        border-radius: 10px;
+    }
+
+    .timeline-item {
+        padding: 20px 40px;
+        position: relative;
+        background-color: inherit;
+        width: 50%;
+        box-sizing: border-box;
+    }
+
+    /* Dallar üzerindeki noktalar */
+    .timeline-item::after {
+        content: '';
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        right: -10px;
+        background-color: #fff;
+        border: 4px solid hsl(#1e3a8a);
+        top: 40px;
+        border-radius: 50%;
+        z-index: 1;
+    }
+
+    .left { left: 0; text-align: right; }
+    .right { left: 50%; text-align: left; }
+
+    .right::after { left: -10px; }
+
+    .content {
+        padding: 20px;
+        background: #fff;
+        position: relative;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        border-bottom: 4px solid #1e3a8a;
+        transition: 0.3s;
+    }
+
+    .content:hover { transform: scale(1.02); }
+
+    .year-badge {
+        display: inline-block;
+        background: #1e3a8a;
+        color: #fff;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+
+    .content h2 {
+        margin: 10px 0;
+        font-family: 'Cinzel', serif;
+        color: #1a1a1a;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: inherit;
+    }
+
+    /* Mobil görünüm için düzeltme */
+    @media (max-width: 768px) {
+        .timeline-container::before { left: 31px; }
+        .timeline-item { width: 100%; padding-left: 70px; text-align: left; }
+        .timeline-item::after { left: 21px; }
+        .left { left: 0; }
+        .content h2 { justify-content: flex-start; }
+    }
+</style>
+
+<div class="timeline-container">
+    
+    <!-- 1894 - KURULUŞ -->
+    <div class="timeline-item left">
+        <div class="content">
+            <span class="year-badge">1894</span>
+            <h2>Kuruluş: İdadi Dönemi <i data-lucide="landmark"></i></h2>
+            <p>
+                Afyonkarahisar'ın eğitim tarihindeki en büyük adımı olan okul, Sultan II. Abdülhamid döneminde "Karahisar-ı Sahip Mekteb-i İdadi-i Mülki" adıyla eğitim hayatına başladı.
+            </p>
+        </div>
+    </div>
+
+    <!-- 1898 - TAŞ BİNA -->
+    <div class="timeline-item right">
+        <div class="content">
+            <span class="year-badge">1898</span>
+            <h2><i data-lucide="building"></i> Mimari İhtişam</h2>
+            <p>
+                Bugün simgeleşen tarihi taş binanın inşaatı tamamlandı. Kesme taş işçiliği ve devasa pencereleriyle Anadolu'daki Osmanlı eğitim yapılarının en güzel örneklerinden biri oldu.
+            </p>
+        </div>
+    </div>
+
+    <!-- 1905 - SULTANİYE DÖNÜŞÜM -->
+    <div class="timeline-item left">
+        <div class="content">
+            <span class="year-badge">1905</span>
+            <h2>Sultani Derecesi <i data-lucide="award"></i></h2>
+            <p>
+                Başarıları sonucunda statüsü yükseltilerek 7 yıllık "Sultani" seviyesine getirildi. Bu dönemde İç Anadolu ve Ege'nin çekim merkezi haline geldi.
+            </p>
+        </div>
+    </div>
+
+    <!-- 1914 - SEFERBERLİK -->
+    <div class="timeline-item right">
+        <div class="content">
+            <span class="year-badge">1914 - 1918</span>
+            <h2><i data-lucide="shield-off"></i> Savaş ve Fedakarlık</h2>
+            <p>
+                Birinci Dünya Savaşı'nda okulun pek çok öğrencisi ve öğretmeni vatan savunması için cepheye gitti; bu sıralar kahramanlık destanlarına tanıklık etti.
+            </p>
+        </div>
+    </div>
+
+    <!-- 1921 - İŞGAL DÖNEMİ -->
+    <div class="timeline-item left">
+        <div class="content">
+            <span class="year-badge">1921 - 1922</span>
+            <h2>İşgal ve Karargah <i data-lucide="cross"></i></h2>
+            <p>
+                Yunan işgali sırasında bina askeri karargah ve hastane olarak kullanıldı. Zorlu işgal yıllarında eğitim askıya alınsa da okulun ruhu asla sönmedi.
+            </p>
+        </div>
+    </div>
+
+    <!-- 1923 - CUMHURİYET -->
+    <div class="timeline-item right">
+        <div class="content">
+            <span class="year-badge">1923</span>
+            <h2><i data-lucide="flag"></i> Cumhuriyet Işığı</h2>
+            <p>
+                Cumhuriyet'in ilanıyla birlikte modern ve laik eğitimin Afyon'daki kalesi oldu. Yeni müfredat ve karma eğitim hazırlıkları bu binada şekillendi.
+            </p>
+        </div>
+    </div>
+
+    <!-- 1931 - ATATÜRK ZİYARETİ -->
+    <div class="timeline-item left">
+        <div class="content">
+            <span class="year-badge">1931</span>
+            <h2>Atatürk'ün İzinde <i data-lucide="user-check"></i></h2>
+            <p>
+                2 Mart 1931'de Gazi Mustafa Kemal Atatürk okulu ziyaret ederek tarihi kütüphanede incelemelerde bulundu ve öğrencilerle bir araya geldi.
+            </p>
+        </div>
+    </div>
+
+    <!-- 1933 - AFYON LİSESİ İSMİ -->
+    <div class="timeline-item right">
+        <div class="content">
+            <span class="year-badge">1933</span>
+            <h2><i data-lucide="book-open"></i> "Afyon Lisesi"</h2>
+            <p>
+                Okul resmen günümüzdeki "Afyon Lisesi" adını aldı. Bu isim, disiplin ve başarıyla özdeşleşerek ulusal bir marka haline geldi.
+            </p>
+        </div>
+    </div>
+
+    <!-- 1950 - DEVLET ADAMLARI -->
+    <div class="timeline-item left">
+        <div class="content">
+            <span class="year-badge">1950 - 1980</span>
+            <h2>Gurur Tablosu <i data-lucide="graduation-cap"></i></h2>
+            <p>
+                Süleyman Demirel ve Ahmet Necdet Sezer gibi devlet adamlarını yetiştirerek "Cumhurbaşkanları Çıkaran Lise" unvanını kazandı.
+            </p>
+        </div>
+    </div>
+
+    <!-- GÜNÜMÜZ -->
+    <div class="timeline-item right">
+        <div class="content">
+            <span class="year-badge">Günümüz</span>
+            <h2><i data-lucide="history"></i> Asırlık Çınar</h2>
+            <p>
+                130 yılı aşkın köklü geçmişiyle Afyon Lisesi, modern eğitimin ve tarihi mirasın buluşma noktası olmaya devam ediyor.
+            </p>
+        </div>
+    </div>
+
+</div>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome (İkonlar için) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Müzik kontrol paneli için basit stil */
+        .music-control {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        .music-control:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800">
+
+    <!-- ========================================== -->
+<!-- BAŞLANGIÇ: Afyon Lisesi Gelişmiş Müzik Modülü -->
+<!-- ========================================== -->
+
+<style>
+    :root {
+        --music-blue: #1877F2;
+        --music-dark: #0d1e38;
+        --glass-bg: rgba(255, 255, 255, 0.9);
+        --shadow-lg: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    /* Müzik Çalar Panel Konumu */
+    .advanced-player-container {
+        position: fixed;
+        bottom: 30px;
+        left: 30px;
+        z-index: 9999;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    /* Ana Panel Tasarımı */
+    .player-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(10px);
+        padding: 10px; /* Padding ayarlandı */
+        border-radius: 50px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        box-shadow: var(--shadow-lg);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        max-width: 65px; /* Varsayılan kapalı hali */
+        height: 65px;   /* Sabit yükseklik ile tam kare/daire kontrolü */
+        overflow: hidden;
+        white-space: nowrap;
+        box-sizing: border-box;
+    }
+
+    /* Üzerine gelince genişleme efekti */
+    .player-card:hover {
+        max-width: 350px;
+        border-radius: 20px;
+        padding-right: 25px;
+    }
+
+    /* Dönen Plak/Disk Görseli */
+    .disc-visualizer {
+        width: 45px;
+        height: 45px;
+        background: linear-gradient(45deg, var(--music-dark), var(--music-blue));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        box-shadow: 0 0 10px rgba(24, 119, 242, 0.4);
+        position: relative;
+        /* İkonun tam merkezde durması için ekstra önlem */
+        padding: 0;
+        margin: 0;
+    }
+
+    /* Çalarken dönme animasyonu */
+    .disc-visualizer.is-playing {
+        animation: rotateDisc 4s linear infinite;
+    }
+
+    @keyframes rotateDisc {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    /* İkonun yamuk durmasını engelleyen stil */
+    .disc-visualizer i {
+        color: white;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        /* Fontawesome play ikonu optik olarak sağa kayık durabilir, düzeltme: */
+        margin-left: 2px; 
+    }
+    
+    .disc-visualizer.is-playing i {
+        margin-left: 0; /* Pause ikonu tam merkezlenmeli */
+    }
+
+    /* Müzik Bilgi Alanı */
+    .player-info {
+        display: flex;
+        flex-direction: column;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .player-card:hover .player-info {
+        opacity: 1;
+    }
+
+    .song-name {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--music-dark);
+        margin-bottom: 4px;
+    }
+
+    /* Ses Kontrol Çubuğu */
+    .controls-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .volume-slider {
+        -webkit-appearance: none;
+        width: 80px;
+        height: 4px;
+        background: #ddd;
+        border-radius: 5px;
+        outline: none;
+        cursor: pointer;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 12px;
+        height: 12px;
+        background: var(--music-blue);
+        border-radius: 50%;
+        cursor: pointer;
+    }
+
+    .volume-icon {
+        font-size: 0.8rem;
+        color: var(--music-blue);
+    }
+
+</style>
+
+<!-- FontAwesome Simgeleri için Link -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<div class="advanced-player-container">
+    <audio id="bg-music" loop>
+        <!-- Buraya MP3 dosyanızın yolunu yazın -->
+        <source src="c:\Users\eymac\Downloads\hshs.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="player-card">
+        <!-- Oynat/Durdur Butonu (Disk) -->
+        <div class="disc-visualizer" id="play-trigger" onclick="toggleAdvancedMusic()">
+            <i id="main-icon" class="fa-solid fa-play"></i>
+        </div>
+
+        <!-- Detaylar (Hover durumunda görünür) -->
+        <div class="player-info">
+            <div class="song-name">Afyon Lisesi Radyo</div>
+            <div class="controls-row">
+                <i class="fa-solid fa-volume-low volume-icon"></i>
+                <input type="range" class="volume-slider" id="vol-control" min="0" max="1" step="0.1" value="0.5">
+                <i class="fa-solid fa-volume-high volume-icon"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const audio = document.getElementById("bg-music");
+    const playTrigger = document.getElementById("play-trigger");
+    const mainIcon = document.getElementById("main-icon");
+    const volumeSlider = document.getElementById("vol-control");
+
+    // Başlangıç ses seviyesi
+    audio.volume = 0.5;
+
+    function toggleAdvancedMusic() {
+        if (audio.paused) {
+            audio.play().then(() => {
+                playTrigger.classList.add("is-playing");
+                mainIcon.className = "fa-solid fa-pause";
+            }).catch(e => {
+                console.error("Müzik dosyası bulunamadı veya tarayıcı engelledi.");
+            });
+        } else {
+            audio.pause();
+            playTrigger.classList.remove("is-playing");
+            mainIcon.className = "fa-solid fa-play";
+        }
+    }
+
+    // Ses seviyesi kontrolü
+    volumeSlider.addEventListener("input", (e) => {
+        audio.volume = e.target.value;
+    });
+</script>
+
+<!-- ========================================== -->
+<!-- BİTİŞ: Afyon Lisesi Gelişmiş Müzik Modülü   -->
+<!-- ========================================== -->
+<!-- 1. BÖLÜM: Kütüphane & Arşiv -->
+<section class="py-16 bg-white">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="flex flex-col md:flex-row items-center gap-12">
+            <div class="flex-1">
+                <div class="inline-block px-4 py-1 bg-blue-100 text-blue-900 rounded-full text-sm font-semibold mb-4">
+                    Tarihi Miras
+                </div>
+                <h2 class="text-4xl font-bold text-gray-900 mb-6">Youtube Tanıtım Videosu</h2>
+                <p class="text-gray-600 text-lg mb-8 leading-relaxed">
+                    Okulumuzun tarihi artık elinizin altında tek tıkla videoyu izleyebilirsiniz.
+                </p>
+                <a href="https://youtu.be/PuUuaqBWn7k?si=9pZgVdT-UQTCdliB" class="bg-blue-900 text-white px-8 py-4 rounded-xl font-bold hover:bg-blue-800 transition-all inline-flex items-center group">
+                    Mimal'i Keşfet
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                </a>
+            </div>
+            <div class="group relative overflow-hidden rounded-2xl aspect-square shadow-lg max-w-[400px] mx-auto">
+    <img src="https://r.resimlink.com/T6fo9EcM.png" class="w-full h-full object-cover transition duration-500 group-hover:scale-110">
+    <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition flex flex-col justify-end p-6 text-white">
+        <h5 class="font-bold text-xl">Tanıtım</h5>
+        <p class="text-sm opacity-80">...</p>
+    </div>
+</div>
+        </div>
+    </div>
+</section>
+<section class="py-16 bg-white">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="flex flex-col md:flex-row items-center gap-12">
+            <div class="flex-1">
+                <div class="inline-block px-4 py-1 bg-blue-100 text-blue-900 rounded-full text-sm font-semibold mb-4">
+                    Ders...
+                </div>
+                <h2 class="text-4xl font-bold text-gray-900 mb-6">Ders Programları</h2>
+                <p class="text-gray-600 text-lg mb-8 leading-relaxed">
+                    Ders Programları
+                </p>
+                <a href="https://afyonlisesi.meb.k12.tr/meb_iys_dosyalar/03/01/964316/dosyalar/2025_09/22111227_sinifdersprogramm.pdf" class="bg-blue-900 text-white px-8 py-4 rounded-xl font-bold hover:bg-blue-800 transition-all inline-flex items-center group">
+                    Programları incele
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                </a>
+            </div>
+            <div class="group relative overflow-hidden rounded-2xl aspect-square shadow-lg max-w-[190px] mx-auto">
+    <img src="https://r.resimlink.com/Mf4YPDL.jpg" class="w-full h-full object-cover transition duration-500 group-hover:scale-110">
+    <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition flex flex-col justify-end p-6 text-white">
+        <h5 class="font-bold text-xl">Ders Programları</h5>
+        <p class="text-sm opacity-80">...</p>
+    </div>
+</div>
+        </div>
+    </div>
+</section>
+<!-- 2. BÖLÜM: Başarı Duvarı (Wall of Fame) -->
+<section class="py-16 bg-gray-50">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="text-center mb-12">
+            <h2 class="text-4xl font-bold text-gray-900">Başarı Duvarımız</h2>
+            <p class="text-gray-500 mt-4 text-lg">Spor ve akademik alanlarda zirveye adını yazdıranlar.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div class="w-12 h-12 bg-yellow-100 flex items-center justify-center rounded-lg mb-6">🏆</div>
+                <h3 class="text-xl font-bold mb-3">Akademik Başarılar</h3>
+                <p class="text-gray-600 mb-6">Olimpiyat dereceleri ve proje yarışmalarında elde edilen ulusal başarılar.</p>
+                <a href="https://afyonlisesi.meb.k12.tr/icerikler/2024-yks-gurur-tablomuz_15349089.html" class="text-blue-900 font-bold hover:underline">Detayları Gör →</a>
+            </div>
+            <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div class="w-12 h-12 bg-blue-100 flex items-center justify-center rounded-lg mb-6">🧑‍💼</div>
+                <h3 class="text-xl font-bold mb-3">Müdürlerimiz</h3>
+                <p class="text-gray-600 mb-6"> Okulumuzun yönetimini başarıyla sağlayan müdürlerimiz. </p>
+                <a href="https://afyonlisesi.meb.k12.tr/meb_iys_dosyalar/03/01/964316/fotograf_galerisi_1162017.html" class="text-blue-900 font-bold hover:underline"> Müdürlerimizi tanı →</a>
+            </div>
+            <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div class="w-12 h-12 bg-green-100 flex items-center justify-center rounded-lg mb-6">🎓</div>
+                <h3 class="text-xl font-bold mb-3">Mezun Başarıları</h3>
+                <p class="text-gray-600 mb-6">Dünyanın dört bir yanındaki seçkin üniversitelere yerleşen mezunlarımız.</p>
+                <a href="https://afyonlisesi.meb.k12.tr/meb_iys_dosyalar/03/01/964316/dosyalar/2021_10/05214647_Afyon-lisesi-Unluleri-donusturuldu.pdf" class="text-blue-900 font-bold hover:underline">Mezun Listesi →</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 3. BÖLÜM: Eğitim Kadrosu & İdari -->
+<section class="py-16 bg-blue-900 text-white">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between">
+        <div class="mb-8 md:mb-0">
+            <h2 class="text-3xl font-bold mb-4">Eğitim Kadrosu & İdari</h2>
+            <p class="text-blue-100 max-w-xl">
+                Uzman öğretmen kadromuz ve vizyoner yönetim anlayışımızla, öğrencilerimizi sadece sınava değil hayata hazırlıyoruz.
+            </p>
+        </div>
+        <a href="https://afyonlisesi.meb.k12.tr/tema/teskilat.php" class="bg-white text-blue-900 px-10 py-4 rounded-xl font-bold hover:bg-gray-100 transition-all shadow-lg">
+            Yönetim & Kadro
+        </a>
+    </div>
+</section>
+<!-- 3. BÖLÜM: Eğitim Kadrosu & İdari -->
+<section class="py-16 bg-blue-900 text-white">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between">
+        <div class="mb-8 md:mb-0">
+            <h2 class="text-3xl font-bold mb-4">Haberler</h2>
+            <p class="text-blue-100 max-w-xl">
+                Okulumuzdaki haberlere yeni gündemlerle takip edin.
+            </p>
+        </div>
+        <a href="https://afyonlisesi.meb.k12.tr/icerikler/icerikler/listele_9051_Haberler" class="bg-white text-blue-900 px-10 py-4 rounded-xl font-bold hover:bg-gray-100 transition-all shadow-lg">
+            Haberler...
+        </a>
+    </div>
+</section>
+<!-- 4. BÖLÜM: İletişim & Lokasyon -->
+<section class="py-16 bg-white">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 bg-gray-50 p-8 rounded-3xl">
+            <div>
+                <h2 class="text-3xl font-bold mb-6">İletişim & Lokasyon</h2>
+                <div class="space-y-4 mb-8">
+                    <div class="flex items-start">
+                        <span class="font-bold text-blue-900 w-24">Adres:</span>
+                        <span class="text-gray-600"> Dumlupınar Mh, Ordu Bulvarı cad, 03200 Afyonkarahisar Merkez/Afyonkarahisar, Türkiye</span>
+                    </div>
+                    <div class="flex items-start">
+                        <span class="font-bold text-blue-900 w-24">Telefon:</span>
+                        <span class="text-gray-600">+90 (0272) 213 87 71
+</span>
+                    </div>
+                    <div class="flex items-start">
+                        <span class="font-bold text-blue-900 w-24">E-Posta:</span>
+                        <span class="text-gray-600">https://afyonlisesi.meb.k12.tr/</span>
+                    </div>
+                </div>
+                <a href="https://eposta.meb.gov.tr/login" class="inline-block border-2 border-blue-900 text-blue-900 px-8 py-3 rounded-xl font-bold hover:bg-blue-900 hover:text-white transition-all">
+                    MEB İletişim Formunu Aç
+                </a>
+                <a href="https://www.google.com/maps/place/38%C2%B045'27.5%22N+30%C2%B032'27.0%22E/@38.757634,30.540836,19z/data=!4m4!3m3!8m2!3d38.7576335!4d30.5408361?hl=tr-TR&entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D" class="inline-block border-2 border-blue-900 text-blue-900 px-8 py-3 rounded-xl font-bold hover:bg-blue-900 hover:text-white transition-all">
+                    Konumunu Gör
+                </a>
+                <a href="https://e-okul.meb.gov.tr/" class="inline-block translate-y-[4px] border-2 border-blue-900 text-blue-900 px-8 py-3 rounded-xl font-bold hover:bg-blue-900 hover:text-white transition-all">
+    E-okul
+</a>
+<a href="https://afyonlisesi.meb.k12.tr/tema/eposta/eposta_gonder.php?CHK=300771264261259258256261271316308305253314256257253323321289276290280274284273284274283&KeepThis=true&width=50&height=75&TB_iframe=true" class="inline-block translate-y-[4px] border-2 border-blue-900 text-blue-900 px-8 py-3 rounded-xl font-bold hover:bg-blue-900 hover:text-white transition-all">
+    E-posta Gönder
+</a>
+<a href="https://afyonlisesi.meb.k12.tr/tema/veli_randevu_edevlet.php" class="inline-block translate-y-[4px] border-2 border-blue-900 text-blue-900 px-8 py-3 rounded-xl font-bold hover:bg-blue-900 hover:text-white transition-all">
+   Okuldan Randevu Al
+</a>
+        </div>
+    </div>
+</section>
+<!-- ========================================== -->
+<!-- BAŞLANGIÇ: Afyon Lisesi ULTIMATE v3 Paketi -->
+<!-- Bu kodu sitenizin <body> kısmına yapıştırın -->
+<!-- ========================================== -->
+
+<style>
+    /* --- ULTIMATE TASARIM SİSTEMİ --- */
+    :root {
+        --fb-blue: #1e3a8a;          /* Facebook Mavisi */
+        --fb-dark: #0d1e38;          /* Koyu Ton */
+        --fb-bg: #f0f2f5;            /* Arka Plan */
+        --glass-white: rgba(255, 255, 255, 0.95);
+        --text-primary: #050505;
+        --text-secondary: #65676b;
+        --success: #36a420;
+        --warning: #f5c344;
+        --danger: #fa3e3e;
+        --radius: 16px;
+        --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+        --shadow-md: 0 8px 30px rgba(0,0,0,0.12);
+        --font-main: 'Segoe UI', Helvetica, Arial, sans-serif;
+    }
+
+    body.large-font { font-size: 110% !important; }
+
+    /* GENEL YAPI */
+    .afyon-wrapper {
+        font-family: var(--font-main);
+        background: var(--fb-bg);
+        color: var(--text-primary);
+        padding-bottom: 50px;
+    }
+
+    /* 1. ÜST BİLGİ BANDI (Gradient) */
+    .top-info-bar {
+        background: linear-gradient(90deg, var(--fb-blue) 0%, #1e3a8a 100%);
+        color: white;
+        padding: 10px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.9rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    .greeting-text { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    
+    /* 2. ANA GRID (Dashboard) */
+    .main-grid {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 20px;
+        max-width: 1250px;
+        margin: 25px auto;
+        padding: 0 20px;
+    }
+
+    /* KART BİLEŞENİ (Ortak) */
+    .pro-card {
+        background: var(--glass-white);
+        border-radius: var(--radius);
+        padding: 20px;
+        box-shadow: var(--shadow-sm);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border: 1px solid rgba(0,0,0,0.05);
+        display: flex;
+        flex-direction: column;
+    }
+    .pro-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+    
+    .card-head {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--fb-blue);
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-bottom: 2px solid rgba(0,0,0,0.05);
+        padding-bottom: 10px;
+    }
+
+    /* KARTLARIN GRID YERLEŞİMİ */
+    .col-3 { grid-column: span 3; }
+    .col-4 { grid-column: span 4; }
+    .col-6 { grid-column: span 6; }
+    .col-8 { grid-column: span 8; }
+    .col-12 { grid-column: span 12; }
+
+    @media (max-width: 900px) { .col-3, .col-4, .col-6, .col-8 { grid-column: span 12; } }
+
+    /* ÖZEL BİLEŞENLER */
+
+    /* A. Canlı Sayaç */
+    .countdown-box { display: flex; justify-content: space-between; text-align: center; gap: 5px; }
+    .cd-item { background: var(--fb-bg); padding: 10px 5px; border-radius: 8px; flex: 1; }
+    .cd-num { font-size: 1.5rem; font-weight: 800; color: var(--fb-blue); display: block; }
+    .cd-label { font-size: 0.7rem; text-transform: uppercase; color: var(--text-secondary); }
+
+    /* B. Sekmeli Pano (Tabs) */
+    .tab-nav { display: flex; gap: 10px; margin-bottom: 15px; }
+    .tab-btn {
+        flex: 1; padding: 10px; border: none; background: var(--fb-bg); 
+        border-radius: 8px; cursor: pointer; font-weight: 600; color: var(--text-secondary);
+        transition: 0.3s;
+    }
+    .tab-btn.active { background: var(--fb-blue); color: white; }
+    .tab-content { display: none; animation: fadeIn 0.3s; }
+    .tab-content.active { display: block; }
+    .notice-list li {
+        padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.05); 
+        font-size: 0.95rem; display: flex; align-items: start; gap: 10px;
+    }
+    .notice-list li::before { content: '📌'; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* C. Günün Sözü */
+    .quote-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-align: center;
+        justify-content: center;
+    }
+    .quote-text { font-size: 1.2rem; font-style: italic; margin-bottom: 10px; line-height: 1.4; }
+    .quote-author { font-size: 0.9rem; opacity: 0.8; }
+
+    /* D. Hızlı Menü Grid */
+    .menu-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .menu-item {
+        background: var(--fb-bg); padding: 15px; border-radius: 10px;
+        text-align: center; text-decoration: none; color: var(--text-primary);
+        font-weight: 600; transition: 0.2s; display: flex; flex-direction: column; align-items: center; gap: 5px;
+    }
+    .menu-item:hover { background: var(--fb-blue); color: white; }
+    .menu-icon { font-size: 1.5rem; }
+
+    /* E. Haftanın Öğrencisi */
+    .student-card { text-align: center; align-items: center; }
+    .student-img {
+        width: 80px; height: 80px; border-radius: 50%; object-fit: cover;
+        border: 3px solid var(--fb-blue); margin-bottom: 10px;
+    }
+    .badge { background: var(--warning); color: #000; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-bottom: 5px; }
+
+    /* F. Video/Foto Galeri */
+    .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+    .gallery-item {
+        position: relative; height: 100px; border-radius: 8px; overflow: hidden; cursor: pointer;
+        background-color: #ddd; background-size: cover; background-position: center;
+    }
+    .gallery-item:hover .gallery-overlay { opacity: 1; }
+    .gallery-overlay {
+        position: absolute; inset: 0; background: rgba(0,0,0,0.5); 
+        display: flex; align-items: center; justify-content: center; color: white;
+        opacity: 0; transition: 0.3s; font-size: 1.5rem;
+    }
+
+    /* YAN AYAR PANELİ */
+    .fab-btn {
+        position: fixed; bottom: 30px; right: 30px;
+        width: 60px; height: 60px; background: var(--fb-blue); color: white;
+        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        font-size: 24px; cursor: pointer; box-shadow: 0 5px 15px rgba(24, 119, 242, 0.4);
+        z-index: 9999; border: none; transition: transform 0.3s;
+    }
+    .fab-btn:hover { transform: scale(1.1) rotate(90deg); }
+    
+    .sidebar {
+        position: fixed; top: 0; right: -320px; width: 300px; height: 100%;
+        background: var(--glass-white); backdrop-filter: blur(10px);
+        box-shadow: -5px 0 30px rgba(0,0,0,0.2); z-index: 10000;
+        transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); padding: 25px;
+        overflow-y: auto;
+    }
+    .sidebar.open { right: 0; }
+    .sidebar-header { display: flex; justify-content: space-between; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+    .tool-btn {
+        width: 100%; padding: 12px; margin-bottom: 10px; border: none;
+        border-radius: 8px; background: var(--fb-bg); color: var(--text-primary);
+        cursor: pointer; text-align: left; display: flex; align-items: center; gap: 10px; font-weight: 600;
+    }
+    .tool-btn:hover { background: #e4e6eb; }
+
+</style>
+
+<div class="afyon-wrapper">
+
+    <!-- 1. DİNAMİK ÜST BAR -->
+    <div class="top-info-bar">
+        <div class="greeting-text" id="greetingArea">
+            👋 Hoş Geldiniz, Misafir
+        </div>
+        <div style="font-family: monospace;">
+            <span id="clockArea">00:00</span>
+        </div>
+    </div>
+
+    <!-- 2. ANA DASHBOARD -->
+    <div class="main-grid">
+
+        <!-- Hava Durumu Ara Kod Başlangıcı -->
+<div style="margin-top: 20px; border-top: 1px solid #eee; padding-top:15px; font-family: sans-serif; width: 300px;">
+    <div style="font-size:1rem; border:none; margin-bottom:10px; font-weight: bold; color: #333;">☁️ Hava Durumu</div>
+    <div style="display:flex; align-items:center; gap:10px; background:#f0f2f5; padding:10px; border-radius:8px;">
+        <span id="w-icon" style="font-size:2rem;">⏳</span>
+        <div>
+            <div id="w-temp" style="font-weight:bold;">--°C</div>
+            <div id="w-desc" style="font-size:0.8rem; color:#65676b;">Yükleniyor...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function getLiveWeather() {
+        // Afyonkarahisar Koordinatları: 38.7507, 30.5567
+        const url = "https://api.open-meteo.com/v1/forecast?latitude=38.7507&longitude=30.5567&current=temperature_2m,weather_code";
+        
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            const temp = Math.round(data.current.temperature_2m);
+            const code = data.current.weather_code;
+            
+            // WMO Weather interpretation codes (https://open-meteo.com/en/docs)
+            let desc = "Açık";
+            let icon = "☀️";
+
+            if (code >= 1 && code <= 3) {
+                desc = "Parçalı Bulutlu";
+                icon = "⛅";
+            } else if (code >= 45 && code <= 48) {
+                desc = "Sisli";
+                icon = "🌫️";
+            } else if (code >= 51 && code <= 67) {
+                desc = "Yağmurlu";
+                icon = "🌧️";
+            } else if (code >= 71 && code <= 77) {
+                desc = "Karlı";
+                icon = "❄️";
+            } else if (code >= 80 && code <= 99) {
+                desc = "Sağanak Yağış";
+                icon = "⛈️";
+            } else if (code >= 4) {
+                desc = "Bulutlu";
+                icon = "☁️";
+            }
+
+            // UI Güncelleme
+            document.getElementById('w-temp').innerText = `${temp}°C`;
+            document.getElementById('w-desc').innerText = desc;
+            document.getElementById('w-icon').innerText = icon;
+
+        } catch (e) {
+            document.getElementById('w-desc').innerText = "Veri alınamadı";
+            console.error("Hava durumu hatası:", e);
+        }
+    }
+
+    // İlk çalışma
+    getLiveWeather();
+    // 15 dakikada bir güncelle
+    setInterval(getLiveWeather, 900000);
+</script>
+<!-- Hava Durumu Ara Kod Bitişi -->
+
+        <!-- ORTA SÜTUN (Sekmeli İçerik - EN ÖNEMLİSİ) -->
+        <div class="pro-card col-6">
+            <div class="tab-nav">
+                <button class="tab-btn active" onclick="openTab(event, 'Duyurular')">📢 Duyurular</button>
+                <button class="tab-btn" onclick="openTab(event, 'Projeler')">🚀 Projeler</button>
+            </div>
+
+            <div id="Duyurular" class="tab-content active">
+                <ul class="notice-list" style="list-style:none; padding:0;">
+                    <li>Sayın Veliler, toplantı saatimiz 13:30'a alınmıştır.</li>
+                    <li>Destekleme ve Yetiştirme Kursları başvuruları başladı.</li>
+                    <li>Kütüphane tadilat nedeniyle 2 gün kapalıdır.</li>
+                    <li><span style="color:red; font-weight:bold;">ACİL:</span> Kan bağışı kampanyası yarın okul bahçesinde.</li>
+                </ul>
+            </div>
+            <div id="Projeler" class="tab-content">
+                <div style="background:#e8f0fe; color:#1967d2; padding:10px; border-radius:8px; margin-bottom:5px;">
+                    <strong>TUBİTAK 4006</strong> <br> <small>Bilim fuarı hazırlıklarımız tüm hızıyla sürüyor.</small>
+                </div>
+                <div style="background:#fce8e6; color:#c5221f; padding:10px; border-radius:8px;">
+                    <strong>eTwinning: Doğa Dostu Okul</strong> <br> <small>Avrupa ortaklı projemiz onaylandı.</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- SAĞ SÜTUN (Sayaç & Motivasyon) -->
+        <div class="col-3" style="display:flex; flex-direction:column; gap:20px;">
+            <!-- Canlı YKS Sayacı -->
+            <div class="pro-card">
+                <div class="card-head">⏳ YKS 2026</div>
+                <div class="countdown-box" id="countdown">
+                    <div class="cd-item"><span class="cd-num" id="d">00</span><span class="cd-label">GÜN</span></div>
+                    <div class="cd-item"><span class="cd-num" id="h">00</span><span class="cd-label">SA</span></div>
+                    <div class="cd-item"><span class="cd-num" id="m">00</span><span class="cd-label">DK</span></div>
+                    <div class="cd-item"><span class="cd-num" id="s">00</span><span class="cd-label">SN</span></div>
+                </div>
+            </div>
+
+            <!-- Haftanın Öğrencisi -->
+            <div class="pro-card student-card">
+                <div class="badge">HAFTANIN YILDIZI ⭐</div>
+                <img src="https://ui-avatars.com/api/?name=Eymen+Açıkgöz&background=random" class="student-img" alt="Öğrenci">
+                <div style="font-weight:bold; font-size:1.1rem;">Eymen Açıkgöz</div>
+                <div style="font-size:0.85rem; color:var(--text-secondary);">10-B Sınıfı</div>
+                <div style="font-size:0.8rem; margin-top:5px;"><i>"Matematik Olimpiyatları İl Birincisi"</i></div>
+            </div>
+        </div>
+
+        <!-- ALT SATIR: Günün Sözü (Tam Genişlik) -->
+        <div class="pro-card col-12 quote-box">
+            <div class="quote-text" id="quoteDisplay">"Eğitim, dünyayı değiştirmek için kullanabileceğiniz en güçlü silahtır."</div>
+            <div class="quote-author" id="authorDisplay">- Nelson Mandela</div>
+        </div>
+    </div> <!-- Grid Sonu -->
+</div>
+<script>
+    // --- 1. SAAT VE SELAMLAMA ---
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clockArea').innerText = now.toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'});
+        
+        const hour = now.getHours();
+        let greeting = "İyi Günler";
+        if(hour < 12) greeting = "Günaydın";
+        else if(hour > 18) greeting = "İyi Akşamlar";
+        
+        document.getElementById('greetingArea').innerText = `👋 ${greeting}, Genç Arkadaşım`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // --- 2. TAB (SEKME) SİSTEMİ ---
+    window.openTab = function(evt, tabName) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].classList.remove("active");
+        }
+        tablinks = document.getElementsByClassName("tab-btn");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].classList.remove("active");
+        }
+        document.getElementById(tabName).classList.add("active");
+        evt.currentTarget.classList.add("active");
+    }
+
+    // --- 3. GÜNÜN SÖZÜ MOTORU ---
+    const quotes = [
+        { text: "Bir okul, bir hapishane kapatır.", author: "Victor Hugo" },
+        { text: "En büyük savaş, cahilliğe karşı yapılan savaştır.", author: "Mustafa Kemal Atatürk" },
+        { text: "Kökleri acı, meyveleri tatlı olan tek şey eğitimdir.", author: "Aristoteles" },
+        { text: "Başarı, hazırlık ve fırsatın buluştuğu yerdir.", author: "Bobby Unser" },
+        { text: "Bizi ilgilendiren konu yalnız barışı kurmanın ve korumanın teknik çareleri değil, aynı zamanda kafaları eğitmenin, aydınlatmanın yoludur.", author: "Albert Einstein" },
+        { text: "Eğitim, ferdin yaşama sanatını idrak edebilmesi için rehber olmalıdır. ", author: "A. North Whitehead" },
+        { text: "Eğitilmemiş deha, işlenmemiş gümüşe benzer.", author: "B.Franklin" },
+        { text: "Başarı, hazırlık ve fırsatın buluştuğu yerdir.", author: "Bernard Shaw" },
+        { text: "İnsan eğitimle doğmaz; ama eğitimle yaşar.", author: "Cervantes" },
+        { text: "Eğitim, ekmek ve sudan sonra, halkın en zorunlu ihtiyacıdır.", author: "Dante Alighieri" },
+        { text: "Öğretim sınıfta biter; fakat eğitim ancak hayatla beraber sona erer.", author: "F. W. Robertson" },
+        { text: "Eğitim; kafayı geliştirmek demektir, belleği doldurmak değil.", author: "Mark Twain" }
+    ];
+    const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+    document.getElementById('quoteDisplay').innerText = `"${randomQuote.text}"`;
+    document.getElementById('authorDisplay').innerText = `- ${randomQuote.author}`;
+
+    // --- 4. GERÇEK GERİ SAYIM (YKS TARİHİ: Örnek 15 Haziran 2025) ---
+    const examDate = new Date("June 20, 2026 10:15:00").getTime();
+    
+    setInterval(function() {
+        const now = new Date().getTime();
+        const distance = examDate - now;
+
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        document.getElementById("d").innerText = days;
+        document.getElementById("h").innerText = hours;
+        document.getElementById("m").innerText = minutes;
+        document.getElementById("s").innerText = seconds;
+    }, 1000);
+</script>
+
+<!-- ========================================== -->
+<!-- BİTİŞ: Afyon Lisesi Eklenti Paketi         -->
+<!-- ========================================== -->
+        <!-- Architecture Section -->
+        <section id="architecture" class="py-24 bg-white">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-16">
+                    <h2 class="text-4xl font-bold text-blue-900 mb-4">Mimari Özellikler</h2>
+                    <p class="text-lg text-slate-600">1914-1916 yılları arasında inşa edilen tarihi mirasımız</p>
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-12 mb-16">
+                    <div class="bg-slate-50 p-8 rounded-3xl border border-slate-200">
+                        <h4 class="text-2xl font-bold text-blue-900 mb-6 flex items-center">
+                            <i class="fa-solid fa-building-columns mr-3 text-accent"></i>
+                            Tarihi Bina İnşaatı
+                        </h4>
+                        <p class="text-slate-700 leading-relaxed mb-4">
+                            Mevcut ana taş binanın inşaatına <strong>19 Mayıs 1914'te</strong> başlanmış ve Birinci Dünya Savaşı sırasında <strong>Ekim 1916'da</strong> tamamlanmıştır.
+                        </p>
+                        <p class="text-slate-700 leading-relaxed">
+                            Bina, doğu-batı yönünde uzun dikdörtgen planlı olup bodrum kat dahil üç katlıdır. Kuzey cephesi ön, güney cephesi arka cephe olup her iki uçta ve ortada çıkıntılar bulunmaktadır.
+                        </p>
+                    </div>
+                    <div class="bg-slate-50 p-8 rounded-3xl border border-slate-200">
+                        <h4 class="text-2xl font-bold text-blue-900 mb-6 flex items-center">
+                            <i class="fa-solid fa-palette mr-3 text-accent"></i>
+                            Mimari Tarz
+                        </h4>
+                        <p class="text-slate-700 leading-relaxed">
+                            Neo-klasik tarzda inşa edilen bina, son dönem Türk mimarisinin gelişmelerini yansıtmaktadır. Binanın ön ve yan duvarları Osmanlı çini sanatının en güzel örnekleri olan kıvrık dal, Rumi ve Palmet dekorları ile süslüdür.
+                        </p>
+                        <div class="mt-6 flex flex-wrap gap-3">
+                            <span class="bg-blue-100 text-blue-800 px-4 py-1 rounded-full text-sm font-medium">Kesilmiş Andezit Taş</span>
+                            <span class="bg-blue-100 text-blue-800 px-4 py-1 rounded-full text-sm font-medium">Osmanlı Çinileri</span>
+                            <span class="bg-blue-100 text-blue-800 px-4 py-1 rounded-full text-sm font-medium">Üç Katlı Yapı</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <div class="text-center p-6 transition-card bg-white rounded-2xl shadow-sm border border-slate-100">
+                        <i class="fa-solid fa-landmark text-4xl text-blue-900 mb-4"></i>
+                        <h5 class="font-bold mb-2">Neo-Klasik Mimari</h5>
+                        <p class="text-sm text-slate-500">Türk mimarisinin son dönem en güzel örneklerinden biri.</p>
+                    </div>
+                    <div class="text-center p-6 transition-card bg-white rounded-2xl shadow-sm border border-slate-100">
+                        <i class="fa-solid fa-gem text-4xl text-blue-900 mb-4"></i>
+                        <h5 class="font-bold mb-2">Kesilmiş Andezit</h5>
+                        <p class="text-sm text-slate-500">Dayanıklı ve estetik kesilmiş andezit taş işçiliği.</p>
+                    </div>
+                    <div class="text-center p-6 transition-card bg-white rounded-2xl shadow-sm border border-slate-100">
+                        <i class="fa-solid fa-layer-group text-4xl text-blue-900 mb-4"></i>
+                        <h5 class="font-bold mb-2">Üç Katlı Yapı</h5>
+                        <p class="text-sm text-slate-500">Bodrum kat dahil üç katlı, işlevsel ve görkemli plan.</p>
+                    </div>
+                    <div class="text-center p-6 transition-card bg-white rounded-2xl shadow-sm border border-slate-100">
+                        <i class="fa-solid fa-wifi text-4xl text-blue-900 mb-4"></i>
+                        <h5 class="font-bold mb-2">Modern Eklentiler</h5>
+                        <p class="text-sm text-slate-500">26 derslik, konferans salonu ve olimpik spor salonu.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- Alumni Section -->
+        <section id="alumni" class="py-24 bg-slate-900 text-white">
+            <div class="container mx-auto px-6">
+                <div class="flex flex-col lg:flex-row items-center gap-16">
+                    <div class="lg:w-1/2">
+                        <h2 class="text-accent uppercase tracking-widest font-semibold mb-4 text-sm">Ünlü Mezunlarımız</h2>
+                        <h3 class="text-4xl md:text-5xl font-bold mb-8">"Ünlülerin Okulu" Olarak Afyon Lisesi</h3>
+                        <p class="text-xl text-slate-300 mb-12 italic leading-relaxed">
+                            Türkiye'ye sayısız değerli isim kazandıran okulumuz, devlet adamlarından sanatçılara kadar geniş bir yelpazede liderler yetiştirmiştir.
+                        </p>
+                        
+                        <div class="grid grid-cols-2 gap-8 mb-12">
+                            <div class="bg-white/10 p-6 rounded-2xl border border-white/20">
+                                <h4 class="font-bold text-xl mb-4 text-accent border-b border-accent/30 pb-2">Ünlü Mezunlarımız</h4>
+                                <div class="space-y-4">
+                                    <div>
+                                        <p class="font-bold text-white">Süleyman Demirel</p>
+                                        <p class="text-xs text-slate-400">9. Cumhurbaşkanı & 7 Dönem Başbakan</p>
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-white">Emel Müftüoğlu</p>
+                                        <p class="text-xs text-slate-400">Ses sanatçısı </p>
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-white"> İsmail Hakkı Karadayı</p>
+                                        <p class="text-xs text-slate-400">22. TSK Genelkurmay Başkanı Orgeneral</p>
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-white">Ahmet Necdet Sezer</p>
+                                        <p class="text-xs text-slate-400">10. Cumhurbaşkanı & AYM Başkanı</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-white/10 p-6 rounded-2xl border border-white/20">
+                                <h4 class="font-bold text-xl mb-4 text-accent border-b border-accent/30 pb-2">Alanlar</h4>
+                                <ul class="text-sm space-y-2 text-slate-300">
+                                    <li class="flex justify-between"><span>Siyasetçiler</span> <span class="text-white font-bold">Çok Sayıda</span></li>
+                                    <li class="flex justify-between"><span>Akademisyenler</span> <span class="text-white font-bold">Yüzlerce</span></li>
+                                    <li class="flex justify-between"><span>Sanatçılar</span> <span class="text-white font-bold">Birçok</span></li>
+                                    <li class="flex justify-between"><span>Sporcular</span> <span class="text-white font-bold">Onlarca</span></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="lg:w-1/2 bg-blue-900/40 p-10 rounded-3xl border border-blue-500/30">
+                        <h4 class="text-2xl font-bold mb-6">130 Yıllık Mükemmellik Geleneği</h4>
+                        <p class="text-slate-300 mb-8 leading-relaxed">
+                            Afyon Lisesi mezunları, siyasetten sanata, bilimden spora birçok alanda Türkiye'nin ve dünyanın önde gelen isimlerini oluşturmaktadır. Okulumuz, yetiştirdiği değerli bireylerle Türk eğitim tarihinde özel bir yere sahiptir.
+                        </p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="flex items-center space-x-3 bg-white/5 p-4 rounded-xl">
+                                <i class="fa-solid fa-check-circle text-accent"></i>
+                                <span>Liderlik</span>
+                            </div>
+                            <div class="flex items-center space-x-3 bg-white/5 p-4 rounded-xl">
+                                <i class="fa-solid fa-check-circle text-accent"></i>
+                                <span>Bilim</span>
+                            </div>
+                            <div class="flex items-center space-x-3 bg-white/5 p-4 rounded-xl">
+                                <i class="fa-solid fa-check-circle text-accent"></i>
+                                <span>Sanat</span>
+                            </div>
+                            <div class="flex items-center space-x-3 bg-white/5 p-4 rounded-xl">
+                                <i class="fa-solid fa-check-circle text-accent"></i>
+                                <span>Spor</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+<section id="gallery" class="py-24 bg-slate-50">
+    <div class="container mx-auto px-4 md:px-6">
+        <div class="text-center mb-20">
+            <h2 class="text-5xl font-bold text-blue-900 mb-6 font-serif">Başarı Grafiğimiz ve Haberler</h2>
+            <div class="w-24 h-1 bg-blue-600 mx-auto rounded-full mb-6"></div>
+            <p class="text-xl text-slate-600 max-w-3xl mx-auto italic">Afyon Lisesi'nin tarihine yön veren öğrencilerimiz ve gurur tablolarımız.</p>
+        </div>
+
+        <!-- Başarı ve Etkinlik Listesi (Alt Alta Düzen) -->
+        <div class="space-y-16 max-w-6xl mx-auto">
+            
+            <!-- 1. BAŞARI: MUSTAFA YİĞİT DERELİ (Örnek Metin ile) -->
+            <div class="flex flex-col md:flex-row bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100 hover:shadow-blue-100 transition-shadow duration-500">
+                <div class="md:w-2/5 h-[500px] relative overflow-hidden">
+                    <img src="https://r.resimlink.com/m0tBvgn_Qq.jpg" alt="Mustafa Yiğit Dereli" class="w-full h-full object-cover">
+                </div>
+                <div class="md:w-3/5 p-8 md:p-12 flex flex-col justify-center">
+                    <div class="mb-4">
+                        <span class="bg-blue-100 text-blue-700 px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider">Uluslararası Başarı</span>
+                    </div>
+                    <h3 class="text-3xl font-bold text-slate-800 mb-6 leading-tight">Harvard HPAIR ve MIT LaunchX Kabulü</h3>
+                    <div class="space-y-4 text-slate-600 text-lg leading-relaxed overflow-y-auto max-h-[350px] pr-4 custom-scrollbar">
+                        <p>Afyon Lisesi 12. sınıf öğrencisi <strong>Mustafa Yiğit Dereli</strong>, dünyanın önde gelen öğrenci konferanslarından Harvard Project for Asian and International Relations (HPAIR)’a katılmaya hak kazandı.</p>
+                        <p>Harvard Üniversitesi tarafından düzenlenen HPAIR, her yıl farklı ülkelerden seçilen üniversite ve yüksek lisans öğrencilerini, akademisyenleri ve alanında uzman isimleri bir araya getirerek ekonomi, teknoloji, küresel sağlık ve uluslararası ilişkiler gibi konular üzerine tartışma ortamı sunuyor.</p>
+                        <p>Dereli, lise yıllarında TÜBİTAK ve Teknofest projelerinde görev alarak bilimsel çalışmalarla ilgilenmeye başladı. Ayrıca Hacettepe Üniversitesi ve TÜBİTAK Marmara Araştırma Merkezi’nde gerçekleştirdiği çalışmalar ve eğitimlerle araştırma deneyimi kazandı.</p>
+                        <p>Henüz lise son sınıf öğrencisi olmasına rağmen uluslararası ölçekte düzenlenen seçkin bir konferansta Türkiye’yi ve Afyon'umuzu temsil edecektir. Ayrıca, dünya çapında seçkin öğrencilerin katıldığı MIT bağlantılı LaunchX Girişimcilik Bootcamp programına %90 burs kazanarak kabul edildi.</p>
+                        <p>Dumlupınar Bilsem aracılığıyla başvuruda bulunan Mustafa Yiğit Dereli, LaunchX Bootcamp kapsamında genç girişimcilerin küresel sorunlara yenilikçi çözümler üretmelerini destekleyen programda; fikir geliştirme, pazar analizi, prototip tasarımı (MVP) ve yatırımcı sunumu (pitch) gibi girişimcilik ekosisteminin temel adımlarını deneyimliyor.</p>
+                        <p>Özellikle biyoteknoloji ve çevre alanındaki projeleriyle dikkat çeken öğrencimizi başarısından dolayı tebrik ediyoruz.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. BAŞARI (Oryantiring) -->
+            <div class="flex flex-col md:flex-row-reverse bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100 hover:shadow-blue-100 transition-shadow duration-500">
+                <div class="md:w-2/5 h-[500px] relative overflow-hidden">
+                    <img src="https://afyonlisesi.meb.k12.tr/meb_iys_dosyalar/03/01/964316/resimler/2025_10/k_03210415_img20251003wa0048.jpg" alt="Trafik" class="w-full h-full object-cover">
+                </div>
+                <div class="md:w-3/5 p-8 md:p-12 flex flex-col justify-center">
+                    <div class="mb-4">
+                        <span class="bg-green-100 text-green-700 px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider">Sosyal Bilinç</span>
+                    </div>
+                    <h3 class="text-3xl font-bold text-slate-800 mb-6 leading-tight">Trafik Candır</h3>
+                    <div class="space-y-4 text-slate-600 text-lg leading-relaxed overflow-y-auto max-h-[350px] pr-4 custom-scrollbar">
+                        <p>TRAFİK CANDIR
+
+ Trafik güvenliği,kuralları,emniyet kemerinin önemi ve kullanılması,okul servis araçlarına inme-binme konularında İl Emniyet Müdürlüğümüzde görevli trafik polisi sayın Murat ÇİTİL tarafından öğrencilerimiz okul bahçemizde bilgilendirildi.
+
+ İl Emniyet Müdürlüğümüze şükranlarımızı sunuyoruz.</p>
+                        <p></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. BAŞARI (Bilek Güreşi) -->
+            <div class="flex flex-col md:flex-row bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100 hover:shadow-blue-100 transition-shadow duration-500">
+                <div class="md:w-2/5 h-[500px] relative overflow-hidden">
+                    <img src="https://afyonlisesi.meb.k12.tr/meb_iys_dosyalar/03/01/964316/resimler/2025_10/k_03211039_img20251003wa0067.jpg" alt="Oryantasyon" class="w-full h-full object-cover">
+                </div>
+                <div class="md:w-3/5 p-8 md:p-12 flex flex-col justify-center">
+                    <div class="mb-4">
+                        <span class="bg-red-100 text-red-700 px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider">Eğitim</span>
+                    </div>
+                    <h3 class="text-3xl font-bold text-slate-800 mb-6 leading-tight">Oryantasyon</h3>
+                    <div class="space-y-4 text-slate-600 text-lg leading-relaxed overflow-y-auto max-h-[350px] pr-4 custom-scrollbar">
+                        <p>Okulumuz ek binasında eğitim görmekte olan 9.sınıf öğrencilerimiz “Oryantasyon Eğitimi” kapsamında okulumuz ana binasını ziyaret etti.
+
+“Afyon Lisesi Eğitim Müzesi” ni ziyaret ederek Oryantasyon Eğitimine başlayan öğrencilerimiz, sınıfları,okul idari birimlerini ve bölümlerini gezdikten sonra Okul Müdürümüz
+
+tarafından odasında misafir edildikten sonra hatıra fotoğrafıyla günü tamamladılar.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 4. Blok -->
+            <div class="flex flex-col md:flex-row-reverse bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100 hover:shadow-blue-100 transition-shadow duration-500">
+                <div class="md:w-2/5 h-[500px] relative overflow-hidden">
+                    <img src="https://afyonlisesi.meb.k12.tr/meb_iys_dosyalar/03/01/964316/resimler/2025_10/k_09085317_whatsappgorsel20251008saat17.41.16_5fa58aaf.jpg" alt="Camii" class="w-full h-full object-cover">
+                </div>
+                <div class="md:w-3/5 p-8 md:p-12 flex flex-col justify-center">
+                    <div class="mb-4">
+                        <span class="bg-orange-100 text-orange-700 px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider">Sosyal Bilinç</span>
+                    </div>
+                    <h3 class="text-3xl font-bold text-slate-800 mb-6 leading-tight">Camiler ve Din Görevlileri Haftası'nı Kutladık</h3>
+                    <div class="space-y-4 text-slate-600 text-lg leading-relaxed overflow-y-auto max-h-[350px] pr-4 custom-scrollbar">
+                        <p>9-B sınıfı öğrencilerimizle Hz. Ali Camii imamı Fatih Özçelik hocamıza bir ziyaret gerçekleştirdik. Camiler ve Din Görevlileri Haftası'nı kutladık. Hocamızın güzel sesinden dinlediğimiz aşrı şerif ve ikramlarıyla gönlümüz şenlendi. Kendisine hizmetlerinde kolaylık ve başarılar diliyoruz.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Diğer 11 Blok da bu yapıda devam edecek... -->
+            <!-- 5. Fotoğraf (Basketbol Kız) -->
+            <div class="flex flex-col md:flex-row bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100">
+                <div class="md:w-2/5 h-[500px] relative overflow-hidden">
+                    <img src="https://r.resimlink.com/OuJDQF.png" class="w-full h-full object-cover">
+                </div>
+                <div class="md:w-3/5 p-8 md:p-12 flex flex-col justify-center">
+                    <div class="mb-4">
+                        <span class="bg-orange-100 text-orange-700 px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider">Sosyal Bilinç</span>
+                    </div>
+                     <h3 class="text-3xl font-bold text-slate-800 mb-6 leading-tight">Cumhuriyetimizin Kuruluşunun 102. Yılını Büyük bir Coşku İle Kutladık</h3>
+                     <p class="text-slate-600 text-lg leading-relaxed">Büyük Önderimiz Mustafa Kemal Atatürk’ün “En büyük eserim” dediği Cumhuriyetimizin 102. yılını büyük bir coşku ile kutladık.</p>
+                </div>
+            </div>
+
+            <!-- 1. BAŞARI: MUSTAFA YİĞİT DERELİ (Örnek Metin ile) -->
+            <div class="flex flex-col md:flex-row bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100 hover:shadow-blue-100 transition-shadow duration-500">
+                <div class="md:w-2/5 h-[500px] relative overflow-hidden">
+                    <img src="https://afyonlisesi.meb.k12.tr/meb_iys_dosyalar/03/01/964316/resimler/2025_12/k_16102725_sabahsporu.jpg" alt="Mustafa Yiğit Dereli" class="w-full h-full object-cover">
+                </div>
+                <div class="md:w-3/5 p-8 md:p-12 flex flex-col justify-center">
+                    <div class="mb-4">
+                        <span class="bg-blue-100 text-blue-700 px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider">Sabah Sporu</span>
+                    </div>
+                    <h3 class="text-3xl font-bold text-slate-800 mb-6 leading-tight">Sabah Egzersizleri İle Güne Zinde Başlıyoruz...</h3>
+                    <div class="space-y-4 text-slate-600 text-lg leading-relaxed overflow-y-auto max-h-[350px] pr-4 custom-scrollbar">
+                        <p> <strong></strong></p>
+                        <p></p>
+                        <p></p>
+                        <p></p>
+                        <p></p>
+                        <p>Okulumuz “Okul Gelişim Projesi” kapsamında “Sabah Kültür-Fizik Hareketi Egzersizleri Projesi” ile öğrencilerimiz,öğretmenlerimiz ve tüm okul personelimizin katılımı ile beden eğitimi öğretmenlerimiz eşliğinde egzersiz hareketleri yapılarak sağlıklı yaşamın önemi vurgulandı.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. BAŞARI (Oryantiring) -->
+            <div class="flex flex-col md:flex-row-reverse bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100 hover:shadow-blue-100 transition-shadow duration-500">
+                <div class="md:w-2/5 h-[500px] relative overflow-hidden">
+                    <img src="https://r.resimlink.com/K5_h7azVJuI.png" alt="Oryantiring Takımı" class="w-full h-full object-cover">
+                </div>
+                <div class="md:w-3/5 p-8 md:p-12 flex flex-col justify-center">
+                    <div class="mb-4">
+                        <span class="bg-green-100 text-green-700 px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider">Spor Başarısı</span>
+                    </div>
+                    <h3 class="text-3xl font-bold text-slate-800 mb-6 leading-tight">Afyon Lisesinden 1 günde 2 kupa</h3>
+                    <div class="space-y-4 text-slate-600 text-lg leading-relaxed overflow-y-auto max-h-[350px] pr-4 custom-scrollbar">
+                        <p>2 takım 2 kupayla döndüğümüz Oryantiring İl Şampiyonasında  okul genç kız ve genç erkekler -A kategorisinde okul takımlarımız her iki kategoride de il 3.sü olarak kuplarını kazanmışlardır.
+
+Sporcularımızı başarılardan dolayı kutluyoruz.
+
+Ayrıca bireysel olarak Belinay Taşköprü il 3.sü olarak ferdi derece elde etmiştir.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. BAŞARI (Bilek Güreşi) -->
+            <div class="flex flex-col md:flex-row bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100 hover:shadow-blue-100 transition-shadow duration-500">
+                <div class="md:w-2/5 h-[500px] relative overflow-hidden">
+                    <img src="https://afyonlisesi.meb.k12.tr/meb_iys_dosyalar/03/01/964316/resimler/2025_12/k_05190506_2.jpg" alt="Bilek Güreşi" class="w-full h-full object-cover">
+                </div>
+                <div class="md:w-3/5 p-8 md:p-12 flex flex-col justify-center">
+                    <div class="mb-4">
+                        <span class="bg-red-100 text-red-700 px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider">Takım Sporları</span>
+                    </div>
+                    <h3 class="text-3xl font-bold text-slate-800 mb-6 leading-tight">Kros Erkek Takımımız İl Şampiyonasında İl 2.si Olmuştur</h3>
+                    <div class="space-y-4 text-slate-600 text-lg leading-relaxed overflow-y-auto max-h-[350px] pr-4 custom-scrollbar">
+                        <p> <strong></strong>, </p>
+                        <p>Öğrencimizin bu başarısı, okulumuzun sadece akademik alanda değil, sporun her dalında zirveyi hedeflediğinin bir göstergesidir. Bölge finallerine katılmaya hak kazanan Ali Şengül'ün, Afyon Lisesi'ni ulusal düzeyde de başarıyla temsil edeceğine inancımız tamdır.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4'den 15'e Kadar Olan Taslaklar (Hızla Doldurabilmen İçin) -->
+            
+            <!-- 4. Blok -->
+            <div class="flex flex-col md:flex-row-reverse bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100 hover:shadow-blue-100 transition-shadow duration-500">
+                <div class="md:w-2/5 h-[500px] relative overflow-hidden">
+                    <img src="https://r.resimlink.com/SoY2P-.png" alt="Basketbol" class="w-full h-full object-cover">
+                </div>
+                <div class="md:w-3/5 p-8 md:p-12 flex flex-col justify-center">
+                    <div class="mb-4">
+                        <span class="bg-orange-100 text-orange-700 px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider">Takım Sporları</span>
+                    </div>
+                    <h3 class="text-3xl font-bold text-slate-800 mb-6 leading-tight">AFYON LİSESİ GENÇ ERKEK - A BASKETBOL TAKIMIMIZ İL 3. SÜ OLMUŞTUR</h3>
+                    <div class="space-y-4 text-slate-600 text-lg leading-relaxed overflow-y-auto max-h-[350px] pr-4 custom-scrollbar">
+                        <p>AFYON LİSESİ GENÇ ERKEK - A BASKETBOL TAKIMIMIZ İL 3. SÜ OLMUŞTUR
+
+Okul sporları kapsamında düzenlenen Genç Erkekler-A kategorisindeki Basketbol Takımımız, büyük bir özveri ile çıktıkları son maçlarından galibiyetle döndüler. 
+
+Afyon Kocatepe Anadolu Lisesini 42- 36 skorla yenen takımımız İL 3.sü olarak sezonun maçlarını tamamlamışlardır. 
+
+Sporcularımızı ve beden eğitimi öğretmenlerimizi kutluyoruz.
+
+</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Diğer 11 Blok da bu yapıda devam edecek... -->
+            <!-- 5. Fotoğraf (Basketbol Kız) -->
+            <div class="flex flex-col md:flex-row bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100">
+                <div class="md:w-2/5 h-[500px] relative overflow-hidden">
+                    <img src="https://r.resimlink.com/27Bgwul3ac.png" class="w-full h-full object-cover">
+                </div>
+                <div class="md:w-3/5 p-8 md:p-12 flex flex-col justify-center">
+                    <div class="mb-4">
+                        <span class="bg-orange-100 text-orange-700 px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider">Takım Sporları</span>
+                    </div>
+                     <h3 class="text-3xl font-bold text-slate-800 mb-6 leading-tight">AFYON LİSESİ GENÇ KIZ BASKETBOL TAKIMIMIZ İL 2. OLMUŞTUR</h3>
+                     <p class="text-slate-600 text-lg leading-relaxed">Okul sporları kapsamında düzenlenen Genç Kızlar - A Basketbol Takımımız, büyük bir özveri ve takım ruhuyla çıktıkları maçtan galibiyetle döndüler. 
+
+Kamil Miras Anadolu Lisesini 42 -14 skorla yenen takımımız İL 2.si olarak sezonun maçlarını tamamlamışlardır. 
+
+Sporcularımızı ve öğretmenlerimizi kutluyoruz.</p>
+                </div>
+            </div>
+        <!-- Instagram Banner -->
+        <div class="mt-32 text-center bg-gradient-to-br from-blue-900 to-blue-800 p-16 rounded-[3rem] shadow-2xl text-white">
+            <h4 class="text-4xl font-bold mb-6 italic font-serif">Anlık Gelişmeler İçin</h4>
+            <p class="text-blue-100 mb-10 text-xl max-w-2xl mx-auto">Afyon Lisesi ailesinin bir parçası olun. Güncel etkinlikler, yarışma duyuruları ve başarı hikayelerimiz için bizi takip edin.</p>
+            <a href="https://www.instagram.com/afyon_lisesi" target="_blank" class="inline-flex items-center space-x-4 bg-white text-blue-900 px-10 py-5 rounded-full font-black text-lg hover:bg-blue-50 transition-all shadow-lg hover:-translate-y-1">
+                <i class="fa-brands fa-instagram text-3xl text-pink-600"></i>
+                <span>Instagram'da Bize Katılın</span>
+            </a>
+        </div>
+    </div>
+</section>
+
+<style>
+    /* Uzun metinler için özel kaydırma çubuğu (scrollbar) */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+</style>
+        <!-- Gallery Section -->
+        <section id="gallery" class="py-24 bg-white">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-16">
+                    <h2 class="text-4xl font-bold text-blue-900 mb-4">Galeri</h2>
+                    <p class="text-lg text-slate-600">Tarihi binamız ve Spor başarılarımız</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="group relative overflow-hidden rounded-2xl aspect-square shadow-lg">
+                        <img src="https://r.resimlink.com/ceF5h6OL.png" class="w-full h-full object-cover transition duration-500 group-hover:scale-110">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition flex flex-col justify-end p-6 text-white">
+                            <h5 class="font-bold text-xl">Tarihi Okul Binası</h5>
+                            <p class="text-sm opacity-80">Neo-klasik mimari örneği</p>
+                        </div>
+                    </div>
+                    <div class="group relative overflow-hidden rounded-2xl aspect-square shadow-lg">
+                        <img src="https://r.resimlink.com/K5_h7azVJuI.png" class="w-full h-full object-cover transition duration-500 group-hover:scale-110">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition flex flex-col justify-end p-6 text-white">
+                            <h5 class="font-bold text-xl">Oryantiring</h5>
+                            <p class="text-sm opacity-80">Okul sporlarımızda oryatiring takımımız İl 3.sü</p>
+                        </div>
+                    </div>
+                    <div class="group relative overflow-hidden rounded-2xl aspect-square shadow-lg">
+                        <img src="https://r.resimlink.com/_sfy1T3M.png" class="w-full h-full object-cover transition duration-500 group-hover:scale-110">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition flex flex-col justify-end p-6 text-white">
+                            <h5 class="font-bold text-xl">Bilek Güreşi</h5>
+                            <p class="text-sm opacity-80">Okulumuz 12.Sınıf öğrencisi Ali Şengül bilek güreşi musabakalarında 75 kiloda il 1. si</p>
+                        </div>
+                    </div>
+                    <div class="group relative overflow-hidden rounded-2xl aspect-square shadow-lg">
+                        <img src="https://r.resimlink.com/SoY2P-.png" class="w-full h-full object-cover transition duration-500 group-hover:scale-110">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition flex flex-col justify-end p-6 text-white">
+                            <h5 class="font-bold text-xl">Basketbol</h5>
+                            <p class="text-sm opacity-80">Erkek A Basketbol takımımız İl 3.sü</p>
+                        </div>
+                    </div>
+                    <div class="group relative overflow-hidden rounded-2xl aspect-square shadow-lg">
+                        <img src="https://r.resimlink.com/27Bgwul3ac.png" class="w-full h-full object-cover transition duration-500 group-hover:scale-110">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition flex flex-col justify-end p-6 text-white">
+                            <h5 class="font-bold text-xl">Basketbol</h5>
+                            <p class="text-sm opacity-80">Kız Basketbol takımımız İl 2.si</p>
+                        </div>
+                    </div>
+                    <div class="group relative overflow-hidden rounded-2xl aspect-square shadow-lg">
+                        <img src="https://resmim.net/cdn/2025/12/28/w8kDEj.png" class="w-full h-full object-cover transition duration-500 group-hover:scale-110">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition flex flex-col justify-end p-6 text-white">
+                            <h5 class="font-bold text-xl">Kros</h5>
+                            <p class="text-sm opacity-80">Okul sporları kapsamında düzenlenen,
+Genç Erkekler-A kategorisindeki Okullar arası Kros yarışmalarında, Kros Erkek Takımımız İl şampiyonasında İl 2.si </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-16 text-center bg-slate-50 p-12 rounded-3xl border border-slate-200">
+                    <h4 class="text-2xl font-bold text-blue-900 mb-4">Daha Fazla Fotoğraf İçin</h4>
+                    <p class="text-slate-600 mb-8 max-w-2xl mx-auto">Afyon Lisesi'nin tarihi binası, öğrencileri ve etkinliklerinden daha fazla fotoğraf görmek için resmi Instagram sayfamızı ziyaret edebilirsiniz.</p>
+                    <a href="https://www.instagram.com/afyon_lisesi?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" class="inline-flex items-center space-x-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white px-8 py-3 rounded-full font-bold hover:shadow-xl transition-all">
+                        <i class="fa-brands fa-instagram text-xl"></i>
+                        <span>Instagram Sayfamız</span>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- HISTORY DETAIL PAGE (HIDDEN BY DEFAULT) -->
+    <div id="history-page" class="hidden-page pt-32 pb-24 bg-slate-50 min-h-screen">
+        <div class="container mx-auto px-6">
+            <!-- Header for Detailed History -->
+            <div class="flex items-center justify-between mb-12 border-b border-slate-300 pb-6">
+                <div class="flex items-center space-x-4">
+                    <img src="https://r.resimlink.com/QS9aJ8b0GrmT.png" alt="MEB Logo" class="h-16">
+                    <div>
+                        <h2 class="text-2xl font-bold text-blue-900">TARİHÎ 100 LİSE</h2>
+                        <p class="text-slate-500 text-sm">(İNTERAKTİF HARİTA)</p>
+                    </div>
+                </div>
+                <button onclick="showPage('main')" class="text-blue-900 font-bold flex items-center hover:underline">
+                    <i class="fa-solid fa-arrow-left mr-2"></i> Ana Sayfaya Dön
+                </button>
+            </div>
+
+            <div class="max-w-5xl mx-auto bg-white p-12 rounded-3xl shadow-2xl space-y-8 text-slate-700 leading-relaxed text-lg">
+                <div class="bg-blue-50 border-l-4 border-blue-900 p-6 italic mb-10">
+                    Okul ile ilgili ilk bilgilere ilk defa “Afyon Rüşdiye Mektebi” adı altında 1912 yılında Servet-i Fünun dergisinde yayınlanan bir yıllıkta rastlanmaktadır. Yıllığın (Salname) kronoloji bölümünde Merkez Rüştiyelerinin Küşatı (açılışı) kısmında okulun kuruluşu Ağustos 1894 olarak belirtilmiştir.
+                </div>
+
+                <p>
+                    Rüştiye sınıfları oluşturulduktan sonra bunların üzerine idâdî sınıfları da açılmıştır. Karahisar-ı Sahip İdâdîsi de Birinci Dünya Savaşı’na kadar içinde rüştiye olmak üzere eğitim ve öğretim görevini sürdürmüştür (1894-1912). Bu dönemde okulun üç rüştiye ve iki idâdî sınıfı bulunmaktaydı. İdâdîlere meslek bölümleri açılmasına karar verildiğinde Afyon’da ancak Ticaret Bölümü açılabilmiş ve bu bölüme pek az öğrenci kaydolabilmiştir.
+                </p>
+
+                <p>
+                    İdâdî’nin ilk binası Mecidiye’de, Paşa Camii karşısında mevcut bulunan Rüştiye Mektebi’nin üst katıydı ve ilk kadrosunda 5 öğretmen ile 3 hademe bulunuyordu. Okulda 61 öğrenci eğitim öğretim görmekteydi. 5 yıllık olan Karahisar-ı Sahip İdâdîsi, daha sonra Mecidiye’deki bu okul binasını bırakarak Yukarı Pazar’daki eski Namık Kemal İlkokulunun binasına taşınmıştır. 1897-1898 öğretim yılında 80 öğrencisi, 1321 tarihli Maarif Salnamesi’nde ise 6 öğretmen ve 92 öğrencisi olduğu görülmektedir.
+                </p>
+
+                <div class="bg-slate-100 p-8 rounded-2xl border-l-4 border-accent">
+                    <h4 class="font-bold text-blue-900 text-xl mb-4">Mevcut Binanın İnşaatı</h4>
+                    <p>
+                        Şimdiki ana taş binanın yapımına 19 Mayıs 1914’te başlanmış ve Ekim 1916’da iki yılı aşkın bir sürede özellikle Birinci Dünya Savaşı’nın bunalımlı devreleri arasında bitirilmiştir. Yapı Türk mimarisinin son gelişmelerini gösteren neo-klasik üsluptadır. Giriş mermer başlıklı basamaklarla döşeli olup, yapının ön ve yan duvarları Osmanlı çini sanatının en güzel örnekleri ile süslüdür. Duvar ise yontma taştandır.
+                    </p>
+                </div>
+
+                <p>
+                    1916 yılından itibaren okul kendi binasında 5 sınıflı idâdî olarak eğitim ve öğretimini sürdürmüştür. 1921-1922 yılında ise 9 sınıflı sultânîye çevrilmiştir. 1923-1926 yılları arasında ilk ve orta kısımlı ortaokul olarak çalışmaya başlamıştır. 1926 yılında artan öğrenci sayısı nedeniyle orta kısımdan ilk kısımlar ayrılmış, boşalan sınıflara pedagoji bölümü eklenmiş ve öğrenim süresi 2 yıl olan pedagojili ortaokul şeklinde eğitim ve öğretim hayatını sürdürmüştür.
+                </p>
+
+                <p>
+                    1929-1930 öğretim yılı döneminde ortaokul, kentin ve çevre ilçelerin artan nüfusu ve duyulan lise ihtiyacını karşılamak amacı ile liseye dönüştürülmüştür. Bu arada pedagoji bölümlerinin sayısı da artırılmıştır. İhtiyacı karşılamak üzere 1931 yılında yatılı öğrenci kabul edilmeye başlanmıştır.
+                </p>
+
+                <p>
+                    Lisenin artan ihtiyacını karşılamak üzere 1937 yılında ana binanın yanındaki yerde Dumlupınar İlkokulu satın alınmış büyük onarımdan geçirilerek, yemekhane kısmı yaptırılmıştır. 1942 yılında yeni binaya eklenti yapılmış, okula yeni dershaneler ve laboratuvarlar kazandırılmıştır.
+                </p>
+
+                <p>
+                    1971-1972 öğretim yılı başlangıcı ile birlikte diğer liselerin çoğunda uygulandığı üzere Fen Deneme Lisesi olarak yeni ders yılına başlamıştır. Aynı yıl ortaokul kısmı resmen kapatılmıştır. 7 Haziran 1994 tarihinde yeni binanın temeli atılmış, yapılan binalar ana bina ile aynı mimariye sahip olup 26 derslik ve laboratuarlar, 300 kişilik konferans salonu ve olimpik ölçülerde kapalı spor salonundan oluşmaktadır.
+                </p>
+
+                <div class="text-center pt-8">
+                    <button onclick="showPage('main')" class="bg-blue-900 text-white px-10 py-4 rounded-xl font-bold hover:bg-blue-800 transition shadow-xl">
+                        Ana Sayfaya Geri Dön
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-slate-950 text-white pt-20 pb-10">
+        <div class="container mx-auto px-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+                <div>
+                    <div class="flex items-center space-x-3 mb-6">
+                        <div class="bg-white text-slate-900 px-3 py-1 rounded font-bold">1894</div>
+                        <span class="text-2xl font-bold">Afyon Lisesi</span>
+                    </div>
+                    <p class="text-slate-400 leading-relaxed mb-6">
+                        Türkiye'nin en köklü eğitim kurumlarından biri olan Afyon Lisesi, 130 yıldır mükemmellik geleneğini sürdürmektedir.
+                    </p>
+                    <div class="flex space-x-4">
+                        <a href="#" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-blue-900 transition"><i class="fa-brands fa-facebook-f"></i></a>
+                        <a href="https://www.instagram.com/afyon_lisesi?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-blue-900 transition"><i class="fa-brands fa-instagram"></i></a>
+                        <a href="#" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-blue-900 transition"><i class="fa-brands fa-x-twitter"></i></a>
+                    </div>
+                </div>
+                <div>
+                    <h5 class="font-bold text-lg mb-6 border-l-4 border-accent pl-3 uppercase tracking-widest text-sm">Hızlı Linkler</h5>
+                    <ul class="space-y-3 text-slate-400">
+                        <li><a href="#about" class="hover:text-white transition">Hakkımızda</a></li>
+                        <li><a href="#history" class="hover:text-white transition">Tarihçe</a></li>
+                        <li><a href="#architecture" class="hover:text-white transition">Mimari</a></li>
+                        <li><a href="#alumni" class="hover:text-white transition">Mezunlarımız</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h5 class="font-bold text-lg mb-6 border-l-4 border-accent pl-3 uppercase tracking-widest text-sm">Kaynaklar</h5>
+                    <ul class="space-y-3 text-slate-400 text-sm">
+                        <li><a href="https://afyonlisesi.meb.k12.tr/" target="_blank" class="hover:text-white flex items-center"><i class="fa-solid fa-link mr-2 text-accent"></i> MEB Resmi Sayfa</a></li>
+                        <li><a href="https://www.instagram.com/afyon_lisesi?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" class="hover:text-white flex items-center"><i class="fa-solid fa-camera mr-2 text-accent"></i> Instagram</a></li>
+                        <li><a href="https://tr.wikipedia.org/wiki/Afyon_Lisesi" target="_blank" class="hover:text-white flex items-center"><i class="fa-solid fa-book mr-2 text-accent"></i> Vikipedi</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h5 class="font-bold text-lg mb-6 border-l-4 border-accent pl-3 uppercase tracking-widest text-sm">İletişim</h5>
+                    <ul class="space-y-4 text-slate-400">
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-location-dot mt-1 mr-3 text-accent"></i>
+                            <span>Afyonkarahisar, Türkiye</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fa-solid fa-phone mr-3 text-accent"></i>
+                            <span>MEB Resmi İletişim</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fa-solid fa-globe mr-3 text-accent"></i>
+                            <span>Resmi Web Sitesi</span>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-phone mr-3 text-accent"></i>
+                            <span>(0272) 213 87 71</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-white/10 pt-10 flex flex-col md:flex-row justify-between items-center text-sm text-slate-500">
+                <p>&copy; 2026 Afyon Lisesi. Tüm hakları saklıdır. 1894'ten beri eğitimde mükemmellik.</p>
+                <div class="flex space-x-6 mt-4 md:mt-0">
+                    <a href="#" class="hover:text-white transition">Gizlilik Politikası</a>
+                    <a href="#" class="hover:text-white transition">Kullanım Şartları</a>
+                    <div class="mt-8 text-center text-[8px] text-slate-400">
+    <a href="#" class="hover:text-white transition">Afyon Lisesi</a>
+</div>
+                </div>
+            </div>
+            <div class="mt-8 text-center text-xs text-slate-600">
+                Bu web sitesi Afyon Lisesi'nin tarihi ve mimarisini tanıtmak amacıyla hazırlanmıştır. Made by EA
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function showPage(pageId) {
+            const mainPage = document.getElementById('main-page');
+            const historyPage = document.getElementById('history-page');
+            
+            if (pageId === 'history') {
+                mainPage.classList.remove('active-page');
+                mainPage.classList.add('hidden-page');
+                historyPage.classList.remove('hidden-page');
+                historyPage.classList.add('active-page');
+                window.scrollTo(0, 0);
+            } else {
+                historyPage.classList.remove('active-page');
+                historyPage.classList.add('hidden-page');
+                mainPage.classList.remove('hidden-page');
+                mainPage.classList.add('active-page');
+                window.scrollTo(0, 0);
+            }
+        }
+
+        // Smooth scroll for nav links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href');
+                const targetElement = document.querySelector(targetId);
+                
+                if (targetElement) {
+                    window.scrollTo({
+                        top: targetElement.offsetTop - 80,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+    </script>
+    </div>
+<!-- GİRİŞ SİSTEMİ BİTİŞİ -->
+</body>
+
+</html>
